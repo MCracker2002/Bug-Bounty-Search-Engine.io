@@ -1,0 +1,1076 @@
+<html lang="en"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bug Bounty Dork Generator - HTDARK</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: #0a0a0a;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        #matrix-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            opacity: 0.1;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .terminal-header {
+            background: linear-gradient(145deg, #1a1a1a, #2d2d2d);
+            border: 2px solid #00ff41;
+            border-radius: 10px 10px 0 0;
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.3);
+        }
+
+        .terminal-dots {
+            display: flex;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff6b35;
+            box-shadow: 0 0 10px rgba(255, 107, 53, 0.5);
+        }
+
+        .dot:nth-child(2) { background: #ffeb3b; box-shadow: 0 0 10px rgba(255, 235, 59, 0.5); }
+        .dot:nth-child(3) { background: #00ff41; box-shadow: 0 0 10px rgba(0, 255, 65, 0.5); }
+
+        .terminal-title {
+            color: #00ff41;
+            font-size: 18px;
+            font-weight: bold;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .terminal-body {
+            background: linear-gradient(145deg, #0f0f0f, #1a1a1a);
+            border: 2px solid #00ff41;
+            border-top: none;
+            border-radius: 0 0 10px 10px;
+            padding: 30px;
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+        }
+
+        .command-prompt {
+            color: #00ff41;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+
+        .prompt-symbol {
+            color: #ff6b35;
+        }
+
+        .tool-description {
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+        }
+
+        .description-title {
+            font-size: 24px;
+            color: #00ff41;
+            margin-bottom: 10px;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .description-text {
+            color: #cccccc;
+            line-height: 1.6;
+        }
+
+        .security-note {
+            background: linear-gradient(145deg, rgba(0, 255, 65, 0.15), rgba(0, 255, 65, 0.05));
+            border: 2px solid #00ff41;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            color: #00ff41;
+            text-align: center;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+        }
+
+        .input-section {
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid #00ff41;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .section-title {
+            color: #ff6b35;
+            font-size: 18px;
+            margin-bottom: 15px;
+            text-align: center;
+            text-shadow: 0 0 8px rgba(255, 107, 53, 0.5);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .input-label {
+            display: block;
+            color: #00ff41;
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .input-field {
+            background: #1a1a1a;
+            border: 2px solid #333;
+            border-radius: 5px;
+            padding: 12px 20px;
+            color: #00ff41;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            width: 300px;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: #00ff41;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.3);
+        }
+
+        .input-field::placeholder {
+            color: #666;
+        }
+
+        .generate-button {
+            background: linear-gradient(145deg, #00ff41, #00cc35);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 30px;
+            color: #000;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            margin: 0 10px;
+        }
+
+        .generate-button:hover {
+            background: linear-gradient(145deg, #00cc35, #00ff41);
+            box-shadow: 0 0 20px rgba(0, 255, 65, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .clear-button {
+            background: linear-gradient(145deg, #ff6b35, #cc5429);
+            border: none;
+            border-radius: 8px;
+            padding: 12px 30px;
+            color: #fff;
+            font-family: 'Courier New', monospace;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            margin: 0 10px;
+        }
+
+        .clear-button:hover {
+            background: linear-gradient(145deg, #cc5429, #ff6b35);
+            box-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+            transform: translateY(-2px);
+        }
+
+        .filter-section {
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid #ff6b35;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .filter-title {
+            color: #ff6b35;
+            font-size: 16px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        #dork-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .label {
+            padding: 8px 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: 1px solid transparent;
+            font-size: 12px;
+            font-family: 'Courier New', monospace;
+        }
+
+        .label--primary {
+            background: rgba(0, 255, 65, 0.2);
+            color: #00ff41;
+            border-color: #00ff41;
+        }
+
+        .label--primary:hover {
+            background: rgba(0, 255, 65, 0.3);
+            box-shadow: 0 0 10px rgba(0, 255, 65, 0.3);
+        }
+
+        .label--accent {
+            background: rgba(255, 107, 53, 0.3);
+            color: #ff6b35;
+            border-color: #ff6b35;
+            box-shadow: 0 0 10px rgba(255, 107, 53, 0.3);
+        }
+
+        .results-title {
+            color: #00ff41;
+            font-size: 18px;
+            text-align: center;
+            margin: 20px 0;
+            padding: 15px;
+            background: rgba(0, 255, 65, 0.1);
+            border: 1px solid #00ff41;
+            border-radius: 8px;
+            text-shadow: 0 0 10px rgba(0, 255, 65, 0.5);
+        }
+
+        .dork-card {
+            background: linear-gradient(145deg, #0f0f0f, #1a1a1a);
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+
+        .dork-card:hover {
+            border-color: #00ff41;
+            box-shadow: 0 0 15px rgba(0, 255, 65, 0.2);
+        }
+
+        .dork-card h4 {
+            color: #ff6b35;
+            font-size: 16px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #333;
+            text-shadow: 0 0 8px rgba(255, 107, 53, 0.5);
+        }
+
+        .dork-card h4:before {
+            content: '🔍 ';
+            margin-right: 8px;
+        }
+
+        .dork-link {
+            display: block;
+            margin-bottom: 8px;
+            font-family: 'Courier New', monospace;
+            color: #cccccc;
+            text-decoration: none;
+            padding: 8px 12px;
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid #333;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+            font-size: 12px;
+            word-break: break-all;
+        }
+
+        .dork-link:hover {
+            background: rgba(0, 255, 65, 0.1);
+            border-color: #00ff41;
+            color: #00ff41;
+            box-shadow: 0 0 8px rgba(0, 255, 65, 0.2);
+        }
+
+        .info-section {
+            background: rgba(255, 107, 53, 0.1);
+            border: 1px solid #ff6b35;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .info-title {
+            color: #ff6b35;
+            font-size: 16px;
+            margin-bottom: 10px;
+            text-shadow: 0 0 8px rgba(255, 107, 53, 0.5);
+        }
+
+        .info-text {
+            color: #cccccc;
+            font-size: 13px;
+            line-height: 1.5;
+        }
+
+        .use-cases {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin: 10px 0;
+        }
+
+        .use-case {
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid #333;
+            border-radius: 5px;
+            padding: 8px;
+            text-align: center;
+            font-size: 12px;
+        }
+
+        .back-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            color: #ff6b35;
+            text-decoration: none;
+            margin-top: 20px;
+            padding: 10px 15px;
+            border: 1px solid #ff6b35;
+            border-radius: 5px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(255, 107, 53, 0.1);
+            box-shadow: 0 0 15px rgba(255, 107, 53, 0.3);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .terminal-body {
+                padding: 20px;
+            }
+            
+            .input-section {
+                padding: 15px;
+            }
+
+            .input-group {
+                flex-direction: column;
+            }
+
+            .input-field {
+                width: 100%;
+            }
+
+            .generate-button, .clear-button {
+                width: 100%;
+                margin: 5px 0;
+            }
+
+            #dork-tags {
+                justify-content: flex-start;
+            }
+
+            .label {
+                font-size: 11px;
+                padding: 6px 12px;
+            }
+
+            .use-cases {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <canvas id="matrix-canvas" width="874" height="748"></canvas>
+    
+    <div class="container">
+        <div class="terminal-header">
+            <div class="terminal-dots">
+                <div class="dot"></div>
+                <div class="dot"></div>
+                <div class="dot"></div>
+            </div>
+            <div class="terminal-title">
+                <i class="fas fa-search"></i> Bug Bounty Dork Generator | System32
+            </div>
+        </div>
+        
+        <div class="terminal-body">
+            <div class="command-prompt">
+                <span class="prompt-symbol">┌──(</span><span style="color: #ff6b35;">System32㉿bugbounty</span><span class="prompt-symbol">)-[</span><span style="color: #00ff41;">~/dork-generator</span><span class="prompt-symbol">]</span><br>
+                <span class="prompt-symbol">└─$</span> ./google_dorker.sh --reconnaissance --advanced
+            </div>
+            
+            <div class="tool-description">
+                <div class="description-title">
+                    <i class="fas fa-search"></i> Advanced Google Dork Generator
+                </div>
+                <div class="description-text">
+                    Generate targeted Google dorks for bug bounty reconnaissance and vulnerability discovery.
+                    Categorized search queries for efficient OSINT and security testing on authorized targets.
+                </div>
+            </div>
+
+            <div class="security-note">
+                <i class="fas fa-shield-alt"></i> <strong>ETHICAL USE ONLY:</strong> This tool is designed for authorized security testing, bug bounty programs, and educational purposes. Always ensure you have proper authorization before testing any domain.
+            </div>
+            
+            <div class="input-section">
+                <div class="section-title">
+                    <i class="fas fa-globe"></i> Target Domain Configuration
+                </div>
+
+                <div class="input-group">
+                    <input type="text" id="domain-input" class="input-field" placeholder="example.com">
+                    <button id="generateButton" class="generate-button">
+                        <i class="fas fa-search"></i> Generate Dorks
+                    </button>
+                    <button id="clearButton" class="clear-button">
+                        <i class="fas fa-times"></i> Clear Results
+                    </button>
+                </div>
+            </div>
+
+            <div id="results" class="hidden">
+                <div class="filter-section">
+                    <div class="filter-title">
+                        <i class="fas fa-filter"></i> Filter by Category
+                    </div>
+                    <div id="dork-tags"></div>
+                </div>
+
+                <h3 class="results-title"></h3>
+                <div id="results-content"></div>
+            </div>
+            
+            <div class="info-section">
+                <div class="info-title">
+                    <i class="fas fa-info-circle"></i> About Google Dorking
+                </div>
+                <div class="info-text">
+                    <strong>Google Dorking</strong> is a technique that uses advanced search operators to find specific information through Google search. In bug bounty hunting, it's used for reconnaissance and identifying potential attack surfaces.
+                    
+                    <br><br><strong>Common Use Cases:</strong>
+                    <div class="use-cases">
+                        <div class="use-case">Admin Panels<br>Discovery</div>
+                        <div class="use-case">Exposed Files<br>&amp; Documents</div>
+                        <div class="use-case">Configuration<br>Files</div>
+                        <div class="use-case">API Endpoints<br>&amp; Documentation</div>
+                        <div class="use-case">Cloud Storage<br>Misconfigurations</div>
+                        <div class="use-case">Database<br>Exposure</div>
+                    </div>
+                    
+                    <strong>Search Operators Used:</strong>
+                    <br>• <strong>site:</strong> Restricts search to specific domain
+                    <br>• <strong>inurl:</strong> Finds specific strings in URLs
+                    <br>• <strong>filetype:</strong> Searches for specific file types
+                    <br>• <strong>intext:</strong> Searches for text within page content
+                    <br>• <strong>intitle:</strong> Searches within page titles
+                    
+                    <br><br><strong>Responsible Disclosure:</strong>
+                    <br>• Always follow responsible disclosure guidelines
+                    <br>• Only test domains you have authorization for
+                    <br>• Report findings through proper bug bounty programs
+                    <br>• Respect scope limitations and terms of service
+                    <br>• Never access or modify data without explicit permission
+                </div>
+            </div>
+            
+            <a href="/" class="back-link">
+                <i class="fas fa-arrow-left"></i> Back to Security Tools
+            </a>
+            <div class="footer" style="text-align:center;padding:18px;color:#7bdc9f;font-size:12px;border-top:1px solid rgba(0,255,65,.2);margin-top:12px">
+              <i class="fas fa-code"></i> Bug Bounty Dork Generator Terminal v1.0 |
+              <a href="/" target="_blank" style="color:#00ff41;text-decoration:none">System32</a>
+              <span class="love" style="color:#19ffa0">❤️</span> Made with love.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Matrix effect
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        const matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%+-/~{[|`]}";
+        const matrixArray = matrix.split("");
+
+        const fontSize = 10;
+        const columns = canvas.width / fontSize;
+
+        const drops = [];
+        for (let x = 0; x < columns; x++) {
+            drops[x] = 1;
+        }
+
+        function draw() {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.04)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            ctx.fillStyle = '#00ff41';
+            ctx.font = fontSize + 'px arial';
+            
+            for (let i = 0; i < drops.length; i++) {
+                const text = matrixArray[Math.floor(Math.random() * matrixArray.length)];
+                ctx.fillText(text, i * fontSize, drops[i] * fontSize);
+                
+                if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) {
+                    drops[i] = 0;
+                }
+                drops[i]++;
+            }
+        }
+
+        setInterval(draw, 35);
+
+        // Resize canvas
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // Bug Bounty Dorks Database
+        const bugBountyDorks = {
+            "File Types": [
+                "site:{domain} filetype:pdf",
+                "site:{domain} filetype:doc",
+                "site:{domain} filetype:docx",
+                "site:{domain} filetype:xls",
+                "site:{domain} filetype:xlsx",
+                "site:{domain} filetype:ppt",
+                "site:{domain} filetype:pptx",
+                "site:{domain} filetype:txt",
+                "site:{domain} filetype:csv",
+                "site:{domain} filetype:zip",
+                "site:{domain} filetype:tar",
+                "site:{domain} filetype:gz",
+                "site:{domain} filetype:sql",
+                "site:{domain} filetype:bak"
+            ],
+            "Admin Panels": [
+                "site:{domain} inurl:admin",
+                "site:{domain} inurl:login",
+                "site:{domain} inurl:dashboard",
+                "site:{domain} inurl:wp-admin",
+                "site:{domain} inurl:controlpanel",
+                "site:{domain} inurl:adminpanel",
+                "site:{domain} inurl:administrator",
+                "site:{domain} inurl:moderator",
+                "site:{domain} inurl:webadmin",
+                "site:{domain} inurl:backoffice",
+                "site:{domain} inurl:backend"
+            ],
+            "Sensitive Info": [
+                "site:{domain} \"password\"",
+                "site:{domain} \"config\"",
+                "site:{domain} \"credentials\"",
+                "site:{domain} \"secret\"",
+                "site:{domain} \"api_key\"",
+                "site:{domain} \"private key\"",
+                "site:{domain} \"client_secret\"",
+                "site:{domain} \"access_token\"",
+                "site:{domain} \"dbpassword\"",
+                "site:{domain} \"authorize\"",
+                "site:{domain} \"confidential\""
+            ],
+            "Directory Listing": [
+                "site:{domain} intitle:\"index of\"",
+                "site:{domain} inurl:ftp",
+                "site:{domain} inurl:uploads",
+                "site:{domain} intext:\"Index of /\"",
+                "site:{domain} intitle:\"Directory Listing For\"",
+                "site:{domain} intext:\"Parent Directory\"",
+                "site:{domain} intitle:\"Index of\" intext:\".env\"",
+                "site:{domain} intitle:\"Index of\" intext:\"config.php\"",
+                "site:{domain} intitle:\"Index of\" intext:\"credentials\""
+            ],
+            "Exposed Configuration Files": [
+                "site:{domain} \"config.php\"",
+                "site:{domain} \"settings.py\"",
+                "site:{domain} \"database.yml\"",
+                "site:{domain} \"web.config\"",
+                "site:{domain} inurl:\".env\"",
+                "site:{domain} inurl:\"wp-config.php\"",
+                "site:{domain} inurl:\"configuration.php\"",
+                "site:{domain} inurl:\"settings.json\"",
+                "site:{domain} inurl:\"config.json\"",
+                "site:{domain} inurl:\"application.yaml\""
+            ],
+            "API Endpoints": [
+                "site:{domain} inurl:api | site:*/rest | site:*/v1 | site:*/v2 | site:*/v3",
+                "site:{domain} intext:\"api documentation\"",
+                "site:{domain} inurl:swagger | inurl:api-docs",
+                "site:{domain} inurl:api/admin",
+                "site:{domain} inurl:api/users",
+                "site:{domain} inurl:api/auth",
+                "site:{domain} inurl:graphql",
+                "site:{domain} inurl:api.php",
+                "site:{domain} inurl:api/v1/auth"
+            ],
+            "GraphQL Endpoints": [
+                "site:{domain} inurl:graphql",
+                "site:{domain} inurl:graphiql",
+                "site:{domain} inurl:graphql.php",
+                "site:{domain} inurl:graphql/console",
+                "site:{domain} \"query {\" \"__schema\"",
+                "site:{domain} intitle:\"GraphiQL\"",
+                "site:{domain} inurl:playground"
+            ],
+            "JWT Vulnerabilities": [
+                "site:{domain} intext:\"jwt token\"",
+                "site:{domain} intext:\"Bearer eyJ\"",
+                "site:{domain} intext:\"Authorization: Bearer\"",
+                "site:{domain} inurl:jwt",
+                "site:{domain} inurl:token"
+            ],
+            "OAuth Misconfiguration": [
+                "site:{domain} inurl:callback",
+                "site:{domain} inurl:oauth/authorize",
+                "site:{domain} inurl:redirect_uri",
+                "site:{domain} inurl:return_to",
+                "site:{domain} inurl:oauth/token",
+                "site:{domain} inurl:client_id",
+                "site:{domain} inurl:response_type=token"
+            ],
+            "CORS Misconfiguration": [
+                "site:{domain} intext:\"Access-Control-Allow-Origin: *\"",
+                "site:{domain} intext:\"Access-Control-Allow-Credentials: true\"",
+                "site:{domain} intext:\"crossorigin\""
+            ],
+            "Cloud Storage Misconfigurations": [
+                "site:s3.amazonaws.com \"{domain}\"",
+                "site:blob.core.windows.net \"{domain}\"",
+                "site:googleapis.com \"{domain}\"",
+                "site:drive.google.com \"{domain}\"",
+                "site:dev.azure.com \"{domain}\"",
+                "site:onedrive.live.com \"{domain}\"",
+                "site:digitaloceanspaces.com \"{domain}\"",
+                "site:sharepoint.com \"{domain}\"",
+                "site:s3-external-1.amazonaws.com \"{domain}\"",
+                "site:s3.dualstack.us-east-1.amazonaws.com \"{domain}\"",
+                "site:dropbox.com/s \"{domain}\"",
+                "site:box.com/s \"{domain}\"",
+                "site:docs.google.com inurl:\"/d/\" \"{domain}\"",
+                "site:storage.googleapis.com \"{domain}\"",
+                "site:amazonaws.com intext:\"{domain}\"",
+                "site:firebasestorage.googleapis.com \"{domain}\""
+            ],
+            "WebSockets": [
+                "site:{domain} inurl:websocket",
+                "site:{domain} inurl:socket.io",
+                "site:{domain} intext:\"ws://\"",
+                "site:{domain} intext:\"wss://\"",
+                "site:{domain} \"WebSocket connection\""
+            ],
+            "Mobile API Endpoints": [
+                "site:{domain} intext:\"mobile api\"",
+                "site:{domain} inurl:api/mobile",
+                "site:{domain} inurl:mobileapi",
+                "site:{domain} inurl:app/api",
+                "site:{domain} inurl:mobile/api",
+                "site:{domain} inurl:api/app"
+            ],
+            "SSRF Prone Parameters": [
+                "inurl:http | inurl:url= | inurl:path= | inurl:dest= | inurl:html= | inurl:data= | inurl:domain= | inurl:page= inurl:& site:{domain}",
+                "inurl:proxy | inurl:fetch | inurl:process | inurl:pull | inurl:retrieve inurl:& site:{domain}",
+                "inurl:go | inurl:redirect | inurl:return | inurl:src | inurl:source | inurl:u | inurl:uri | inurl:url inurl:& site:{domain}",
+                "inurl:window | inurl:next | inurl:target | inurl:rurl | inurl:dest inurl:& site:{domain}"
+            ],
+            "XSS Prone Parameters": [
+                "inurl:q= | inurl:s= | inurl:search= | inurl:query= | inurl:keyword= | inurl:lang= inurl:& site:{domain}",
+                "inurl:msg= | inurl:text= | inurl:error= | inurl:title= | inurl:description= | inurl:content= inurl:& site:{domain}",
+                "inurl:name= | inurl:message= | inurl:body= | inurl:feedback= inurl:& site:{domain}"
+            ],
+            "SQL Injection Parameters": [
+                "inurl:id= | inurl:pid= | inurl:category= | inurl:cat= | inurl:action= | inurl:sid= | inurl:dir= inurl:& site:{domain}",
+                "inurl:user= | inurl:uid= | inurl:article= | inurl:item= | inurl:page_id= inurl:& site:{domain}",
+                "inurl:view= | inurl:product= | inurl:news= | inurl:file= | inurl:type= inurl:& site:{domain}"
+            ],
+            "RCE Prone Parameters": [
+                "inurl:cmd | inurl:exec= | inurl:query= | inurl:code= | inurl:do= | inurl:run= | inurl:read= | inurl:ping= inurl:& site:{domain}",
+                "inurl:system= | inurl:os= | inurl:execute= | inurl:shell= | inurl:download= inurl:& site:{domain}",
+                "inurl:eval= | inurl:command= | inurl:execute= | inurl:script= | inurl:payload= inurl:& site:{domain}"
+            ],
+            "Server-Side Template Injection": [
+                "site:{domain} intext:\"{{'7'*7}}\"",
+                "site:{domain} intext:\"${7*7}\"",
+                "site:{domain} intext:\"{{7*7}}\"",
+                "site:{domain} intext:\"<%= 7*7 %>\"",
+                "site:{domain} intext:\"#{7*7}\""
+            ],
+            "Monitoring Systems": [
+                "site:{domain} inurl:nagios",
+                "site:{domain} inurl:zabbix",
+                "site:{domain} inurl:prometheus",
+                "site:{domain} inurl:grafana",
+                "site:{domain} inurl:kibana",
+                "site:{domain} inurl:splunk",
+                "site:{domain} inurl:elasticsearch",
+                "site:{domain} inurl:monitor"
+            ],
+            "Git Repositories": [
+                "site:{domain} inurl:.git",
+                "site:{domain} inurl:.git/HEAD",
+                "site:{domain} inurl:.git/config",
+                "site:{domain} intext:\"Index of /.git\"",
+                "site:{domain} filetype:git"
+            ],
+            "Continuous Integration": [
+                "site:{domain} inurl:jenkins",
+                "site:{domain} inurl:travis",
+                "site:{domain} inurl:circleci",
+                "site:{domain} inurl:bamboo",
+                "site:{domain} inurl:gitlab-ci",
+                "site:{domain} inurl:drone",
+                "site:{domain} intext:\"pipeline\""
+            ],
+            "Authentication Bypasses": [
+                "site:{domain} inurl:debug=true",
+                "site:{domain} inurl:test=true",
+                "site:{domain} inurl:dev=true",
+                "site:{domain} inurl:development=true",
+                "site:{domain} inurl:bypass=true",
+                "site:{domain} inurl:local=true",
+                "site:{domain} inurl:staging=true"
+            ],
+            "Open Redirects": [
+                "site:{domain} inurl:redirect",
+                "site:{domain} inurl:return",
+                "site:{domain} inurl:r=http",
+                "site:{domain} inurl:url=http",
+                "site:{domain} inurl:next=http",
+                "site:{domain} inurl:continue=http",
+                "site:{domain} inurl:returnto=http",
+                "site:{domain} inurl:goto=http"
+            ],
+            "Debug Parameters": [
+                "site:{domain} inurl:debug=true",
+                "site:{domain} inurl:test=true",
+                "site:{domain} inurl:show_err=true",
+                "site:{domain} inurl:debug_mode=true",
+                "site:{domain} inurl:debug_level",
+                "site:{domain} inurl:testing=true",
+                "site:{domain} inurl:dev_mode=true"
+            ],
+            "Hidden Features": [
+                "site:{domain} inurl:beta",
+                "site:{domain} inurl:hidden",
+                "site:{domain} inurl:unreleased",
+                "site:{domain} inurl:upcoming",
+                "site:{domain} inurl:draft",
+                "site:{domain} inurl:private",
+                "site:{domain} inurl:preview",
+                "site:{domain} inurl:testing"
+            ],
+            "Advanced CSP Bypasses": [
+                "site:{domain} intext:\"Content-Security-Policy\"",
+                "site:{domain} intext:\"unsafe-inline\"",
+                "site:{domain} intext:\"unsafe-eval\"",
+                "site:{domain} intext:\"script-src 'self'\"",
+                "site:{domain} intext:\"style-src 'unsafe-inline'\""
+            ],
+            "Backup & Old Files": [
+                "site:{domain} inurl:backup",
+                "site:{domain} inurl:old",
+                "site:{domain} inurl:bak",
+                "site:{domain} inurl:archive",
+                "site:{domain} inurl:temp",
+                "site:{domain} inurl:save",
+                "site:{domain} inurl:copy"
+            ],
+            "Error Pages & Stack Traces": [
+                "site:{domain} intext:\"Exception in thread\"",
+                "site:{domain} intext:\"at java.\"",
+                "site:{domain} intext:\"Traceback (most recent call last)\"",
+                "site:{domain} intext:\"Warning: include\"",
+                "site:{domain} intext:\"Fatal error:\""
+            ],
+            "Email Leakage": [
+                "site:{domain} intext:@{domain}",
+                "site:{domain} intext:\"email\"",
+                "site:{domain} inurl:contact",
+                "site:{domain} inurl:support"
+            ],
+            "Dev Tools & Editors": [
+                "site:{domain} inurl:.vscode",
+                "site:{domain} inurl:.idea",
+                "site:{domain} inurl:.git",
+                "site:{domain} inurl:composer.lock",
+                "site:{domain} inurl:package-lock.json"
+            ],
+            "SSO & Identity Providers": [
+                "site:{domain} inurl:saml",
+                "site:{domain} inurl:idp",
+                "site:{domain} inurl:openid",
+                "site:{domain} inurl:auth0",
+                "site:{domain} inurl:login.microsoftonline.com"
+            ],
+            "Exposed Client-Side Secrets": [
+                "site:{domain} filetype:js intext:\"apiKey\"",
+                "site:{domain} filetype:js intext:\"secret\"",
+                "site:{domain} filetype:js intext:\"token\"",
+                "site:{domain} filetype:js intext:\"firebase\""
+            ],
+            "IoT / Device Portals": [
+                "site:{domain} inurl:/device",
+                "site:{domain} intitle:\"Device Login\"",
+                "site:{domain} inurl:controlpanel.cgi",
+                "site:{domain} inurl:printer",
+                "site:{domain} inurl:camera",
+                "site:{domain} inurl:dashboard.cgi"
+            ],
+            "Shadow IT / Subdomains": [
+                "site:*.{domain} -www.{domain}",
+                "site:{domain} -inurl:www",
+                "site:{domain} -inurl:www inurl:dev",
+                "site:{domain} -inurl:www inurl:staging"
+            ],
+            "Framework Targets": [
+                "site:{domain} inurl:wp-content",
+                "site:{domain} inurl:drupal",
+                "site:{domain} inurl:typo3",
+                "site:{domain} inurl:joomla",
+                "site:{domain} inurl:rails",
+                "site:{domain} inurl:laravel"
+            ],
+            "Dependency & Package Leaks": [
+                "site:{domain} inurl:package.json",
+                "site:{domain} inurl:requirements.txt",
+                "site:{domain} inurl:Gemfile.lock",
+                "site:{domain} inurl:pom.xml",
+                "site:{domain} inurl:build.gradle"
+            ],
+            "CI/CD Leaks": [
+                "site:{domain} inurl:.gitlab-ci.yml",
+                "site:{domain} inurl:.github/workflows",
+                "site:{domain} inurl:circle.yml",
+                "site:{domain} inurl:buildkite.yml",
+                "site:{domain} inurl:azure-pipelines.yml"
+            ],
+            "Known CVE Indicators": [
+                "site:{domain} inurl:/cgi-bin/ (Shellshock)",
+                "site:{domain} ext:log4j",
+                "site:{domain} ext:jar intext:org.apache",
+                "site:{domain} inurl:.env intext:JWT",
+                "site:{domain} inurl:solr admin"
+            ],
+            "WAF / Security Tech Exposure": [
+                "site:{domain} inurl:modsecurity",
+                "site:{domain} inurl:incapsula",
+                "site:{domain} inurl:cloudflare",
+                "site:{domain} inurl:sucuri",
+                "site:{domain} inurl:akamai"
+            ],
+            "Third-Party Services": [
+                "site:{domain} inurl:chat.js",
+                "site:{domain} inurl:analytics.js",
+                "site:{domain} inurl:recaptcha",
+                "site:{domain} inurl:cdn-cgi"
+            ],
+            "Blockchain & Smart Contracts": [
+                "site:{domain} intext:\"smart contract\"",
+                "site:{domain} inurl:contract",
+                "site:{domain} intext:\"solidity\"",
+                "site:{domain} inurl:.sol",
+                "site:{domain} inurl:web3",
+                "site:{domain} intext:\"metamask\"",
+                "site:{domain} intext:\"private key\" filetype:txt"
+            ],
+            "AI / LLM Exposure": [
+                "site:{domain} intext:\"openai api key\"",
+                "site:{domain} filetype:env intext:\"GPT\"",
+                "site:{domain} filetype:json intext:\"huggingface\"",
+                "site:{domain} inurl:/chatbot",
+                "site:{domain} inurl:/ai",
+                "site:{domain} inurl:/predict",
+                "site:{domain} intext:\"prompt injection\""
+            ],
+            "Fuzzing & Test Artifacts": [
+                "site:{domain} inurl:fuzz",
+                "site:{domain} intext:\"test string\"",
+                "site:{domain} intext:\"FUZZ\"",
+                "site:{domain} inurl:/testapi",
+                "site:{domain} inurl:/fuzzer",
+                "site:{domain} inurl:/dummy"
+            ],
+            "Phishing Kit Indicators": [
+                "site:{domain} intitle:\"login\" inurl:secure",
+                "site:{domain} intext:\"verify your account\"",
+                "site:{domain} inurl:/security-update",
+                "site:{domain} inurl:/recovery",
+                "site:{domain} inurl:/validate",
+                "site:{domain} inurl:/signin.php",
+                "site:{domain} inurl:/outlook", 
+                "site:{domain} inurl:/banking"
+            ],
+            "Honeypot Detection": [
+                "site:{domain} intext:\"This system is monitored\"",
+                "site:{domain} intext:\"all activity is logged\"",
+                "site:{domain} intext:\"unauthorized access\"",
+                "site:{domain} inurl:honeypot",
+                "site:{domain} inurl:/trap",
+                "site:{domain} inurl:/admin-monitor",
+                "site:{domain} inurl:canary"
+            ]
+        };
+
+        // Utility functions
+        function isValidDomain(domain) {
+            const regex = /^([a-z0-9-]+\.)+[a-z]{2,}$/i;
+            return regex.test(domain);
+        }
+
+        // Generate Bug Bounty Dorks functionality
+        function generateBugBountyDorks() {
+            const domainInput = document.getElementById('domain-input').value.trim();
+            if (!isValidDomain(domainInput)) {
+                alert('Please enter a valid domain (e.g., example.com)');
+                return;
+            }
+
+            const domain = domainInput.replace(/https?:\/\//, '').replace(/\/.*$/, '');
+            const resultsContent = document.getElementById('results-content');
+            resultsContent.innerHTML = '';
+            document.getElementById('results').classList.remove('hidden');
+            document.querySelector('.results-title').innerHTML = `<i class="fas fa-crosshairs"></i> Generated Dorks for: ${domain}`;
+
+            // Generate tag filters
+            const tagContainer = document.getElementById('dork-tags');
+            tagContainer.innerHTML = '';
+
+            // "All" tag
+            const allTag = document.createElement('span');
+            allTag.className = 'label label--accent';
+            allTag.textContent = 'All Categories';
+            allTag.dataset.category = 'all';
+            tagContainer.appendChild(allTag);
+
+            // Category tags
+            for (const category in bugBountyDorks) {
+                const tag = document.createElement('span');
+                tag.className = 'label label--primary';
+                tag.textContent = category;
+                tag.dataset.category = category;
+                tagContainer.appendChild(tag);
+            }
+
+            // Generate dork cards
+            for (const category in bugBountyDorks) {
+                const card = document.createElement('div');
+                card.className = 'dork-card';
+                card.dataset.category = category;
+
+                const title = document.createElement('h4');
+                title.textContent = category;
+                card.appendChild(title);
+
+                bugBountyDorks[category].forEach(dork => {
+                    const dorkQuery = dork.replace(/{domain}/g, domain);
+                    const link = document.createElement('a');
+                    link.href = `https://www.google.com/search?q=${encodeURIComponent(dorkQuery)}`;
+                    link.target = '_blank';
+                    link.className = 'dork-link';
+                    link.textContent = dorkQuery;
+                    card.appendChild(link);
+                });
+
+                resultsContent.appendChild(card);
+            }
+        }
+
+        function hideResults() {
+            document.getElementById('results').classList.add('hidden');
+            document.getElementById('results-content').innerHTML = '';
+            document.getElementById('domain-input').value = '';
+        }
+
+        // Event listeners
+        document.getElementById('generateButton').addEventListener('click', generateBugBountyDorks);
+        document.getElementById('clearButton').addEventListener('click', hideResults);
+
+        // Filter functionality
+        document.getElementById('dork-tags').addEventListener('click', function(e) {
+            if (e.target.classList.contains('label')) {
+                const selected = e.target.dataset.category;
+                const cards = document.querySelectorAll('#results-content .dork-card');
+
+                cards.forEach(card => {
+                    const category = card.dataset.category;
+                    const match = selected === 'all' || category === selected;
+                    card.style.display = match ? '' : 'none';
+                });
+
+                // Update tag styles
+                document.querySelectorAll('#dork-tags .label').forEach(tag => {
+                    tag.classList.remove('label--accent');
+                    tag.classList.add('label--primary');
+                });
+
+                e.target.classList.remove('label--primary');
+                e.target.classList.add('label--accent');
+            }
+        });
+
+        // Allow Enter key to generate dorks
+        document.getElementById('domain-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                generateBugBountyDorks();
+            }
+        });
+    </script>
+
+</body></html>

