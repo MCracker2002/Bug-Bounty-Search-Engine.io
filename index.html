@@ -78,7 +78,7 @@ h1 span{color:var(--green);text-shadow:var(--glow)}
 .terminal-window::-webkit-scrollbar-track{background:#000}
 .terminal-window::-webkit-scrollbar-thumb{background:#333;border-radius:4px}
 
-.cursor{animation:blink 1s infinite}
+.cursor{animation:blink 1s infinite; color:#ff5f56;}
 @keyframes blink{50%{opacity:0}}
 
 /* INPUT AREA */
@@ -150,7 +150,7 @@ h1 span{color:var(--green);text-shadow:var(--glow)}
 <h1>OSINT<br><span>Bug Bounty Tools</span></h1>
 <p class="desc">Unlock unparalleled performance with <b>SYSTEM32</b>.</p>
 <div class="actions">
-<a class="btn">Osint.sh</a>
+<a class="btn" href="/osint-framework.html">Osint.sh</a>
 <a class="btn" href="/exploits.html">ExploitS.sh</a>
 </div>
 </section>
@@ -171,6 +171,8 @@ h1 span{color:var(--green);text-shadow:var(--glow)}
       <div>3 → XSS Payload Generator</div>
       <div>4 → Bug Bounty Google Dorks</div>
       <div>5 → System32 Exploit DB</div>
+      <br>
+      <div style="color: #6495ED;">Please Input Option And Press Enter..</div>
       <br>
     </div>
     
@@ -194,7 +196,7 @@ function resizeMatrix() {
 }
 resizeMatrix();
 
-const chars = "SYSTEM32|Crackcodes|Code0x00|MynK0x00";
+const chars = "SYSTEM32 Crackcodes Code0x00 MynK0x00";
 const fs = 14;
 let cols = c.width / fs;
 let drops = [];
@@ -286,24 +288,24 @@ function run(cmd) {
   switch (cmd) {
     case "1":
       type(["[+] Loading OSINT Toolkit...", "[!] Redirecting..."]);
-      setTimeout(() => window.open("/osint-framework.html", "_blank"), 2000);
+      setTimeout(() => window.open("/osint-framework.html", "_blank"), 3000);
       break;
     case "2":
       type(["Bug Bounty Commands:", "> subfinder -d target.com -all", "> httpx -l subs.txt"]);
-      setTimeout(() => window.open("/bug-bounty-command-generator.html", "_blank"), 2000);
+      setTimeout(() => window.open("/bug-bounty-command-generator.html", "_blank"), 3000);
       break;
     case "3":
       type(["XSS Payloads:", "> <script>alert(1)<\/script>"]);
-      setTimeout(() => window.open("/xss-payload-generator.html", "_blank"), 2000);
+      setTimeout(() => window.open("/xss-payload-generator.html", "_blank"), 3000);
       break;
     case "4":
       type(["Google Dorks:", "> site:target.com inurl:admin"]);
-      setTimeout(() => window.open("/bug-bounty-dork-generator.html", "_blank"), 2000);
+      setTimeout(() => window.open("/bug-bounty-dork-generator.html", "_blank"), 3000);
       break;
 
     case "5":  
       type(["ExploitDB:", "> Loding........."]);
-      setTimeout(() => window.open("/exploits.html", "_blank"), 2000);
+      setTimeout(() => window.open("/exploits.html", "_blank"), 3000);
       break;
       
     case "clear":
