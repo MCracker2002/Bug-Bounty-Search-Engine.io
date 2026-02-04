@@ -151,7 +151,7 @@ h1 span{color:var(--green);text-shadow:var(--glow)}
 <p class="desc">Unlock unparalleled performance with <b>SYSTEM32</b>.</p>
 <div class="actions">
 <a class="btn">Osint.sh</a>
-<a class="btn">bounty.sh</a>
+<a class="btn" href="/exploits.html">ExploitS.sh</a>
 </div>
 </section>
 
@@ -170,6 +170,7 @@ h1 span{color:var(--green);text-shadow:var(--glow)}
       <div>2 → ALL Bug Bounty Commands Generator</div>
       <div>3 → XSS Payload Generator</div>
       <div>4 → Bug Bounty Google Dorks</div>
+      <div>5 → System32 Exploit DB</div>
       <br>
     </div>
     
@@ -299,6 +300,12 @@ function run(cmd) {
       type(["Google Dorks:", "> site:target.com inurl:admin"]);
       setTimeout(() => window.open("/bug-bounty-dork-generator.html", "_blank"), 2000);
       break;
+
+    case "5":  
+      type(["ExploitDB:", "> Loding........."]);
+      setTimeout(() => window.open("/exploits.html", "_blank"), 2000);
+      break;
+      
     case "clear":
       output.innerHTML = "";
       break;
